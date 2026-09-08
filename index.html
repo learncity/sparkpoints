@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learn City Spark Points</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="signInScreen">
+    <h1>Spark Points</h1>
+    <p class="subtitle">Learn City Model Schools &amp; Academy</p>
+
+    <label for="staffEmail">Email</label>
+    <input type="email" id="staffEmail" autocomplete="username">
+
+    <label for="staffCode">Code</label>
+    <input type="password" id="staffCode" autocomplete="current-password" inputmode="numeric">
+
+    <button id="signInBtn" type="button">Sign In</button>
+    <p id="signInError" class="error"></p>
+  </div>
+
+  <div id="logScreen" class="hidden">
+    <div class="topBar">
+      <div>
+        <strong id="staffNameDisplay"></strong>
+        <span id="staffRoleDisplay" class="subtitle"></span>
+      </div>
+      <button id="signOutBtn" type="button" class="linkBtn">Sign out</button>
+    </div>
+
+    <h2>Log a Point</h2>
+
+    <label for="termSelect">Term</label>
+    <select id="termSelect">
+      <option>First Term</option>
+      <option>Second Term</option>
+      <option>Third Term</option>
+    </select>
+
+    <label for="studentSelect">Student</label>
+    <select id="studentSelect"><option value="">Loading students...</option></select>
+
+    <label for="entryTypeSelect">Entry Type</label>
+    <select id="entryTypeSelect">
+      <option value="Achievement Points">Achievement Points</option>
+      <option value="Behavioural Points">Behavioural Points</option>
+    </select>
+
+    <label for="categorySelect">Category</label>
+    <select id="categorySelect"><option value="">Choose Entry Type first</option></select>
+
+    <label for="noteInput">Note</label>
+    <textarea id="noteInput" rows="4" placeholder="Context, what happened, response, and outcome."></textarea>
+
+    <label for="actionSelect">Action Taken</label>
+    <select id="actionSelect">
+      <option>Verbal reminder given</option>
+      <option>Merit/recognition given in class</option>
+      <option>Referred to Form Tutor</option>
+      <option>Referred to Head of Section</option>
+      <option>Referred to Principal</option>
+      <option>Parent notified</option>
+      <option>Other (see note)</option>
+    </select>
+
+    <label for="followUpSelect">Follow-up</label>
+    <select id="followUpSelect">
+      <option>None required</option>
+      <option>Monitor next lesson</option>
+      <option>Formal concern meeting required</option>
+      <option>Parent meeting scheduled</option>
+      <option>Under review</option>
+      <option>Other</option>
+    </select>
+
+    <button id="submitBtn" type="button">Save Entry</button>
+    <p id="logError" class="error"></p>
+    <p id="logSuccess" class="success"></p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
