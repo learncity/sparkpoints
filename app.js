@@ -222,7 +222,8 @@ function submitEntry() {
     $('submitBtn').textContent = 'Save Entry';
     if (!r || !r.success) { $('logError').textContent = (r && r.error) || 'Could not save the entry.'; return; }
     $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
-      (currentStudent() ? currentStudent().name : 'the student') + '.';
+      (currentStudent() ? currentStudent().name : 'the student') + '.' +
+      (r.parentNotified ? ' Parent notified.' : '');
     $('noteInput').value = '';
   }).catch(function () {
     $('submitBtn').disabled = false;
@@ -421,6 +422,21 @@ function wire() {
   });
   $('dashStudentSelect').addEventListener('change', function () { loadStudentDashboard(this.value); });
   $('dashClassSelect').addEventListener('change', function () { loadClassDashboard(this.value); });
+
+  /* A link from the enrolment email looks like ?email=...&code=... —
+     prefill and sign in automatically if both are present, taking
+     priority over anything already saved on this device. */
+  const params = new URLSearchParams(location.search);
+  const linkEmail = params.get('email');
+  const linkCode = params.get('code');
+
+  if (linkEmail && linkCode) {
+    $('staffEmail').value = linkEmail;
+    $('staffCode').value = linkCode;
+    history.replaceState({}, document.title, location.pathname);
+    trySignIn(linkEmail, linkCode);
+    return;
+  }
 
   let savedEmail, savedCode;
   try { savedEmail = sessionStorage.getItem(STORE_EMAIL); savedCode = sessionStorage.getItem(STORE_CODE); } catch (e) {}
