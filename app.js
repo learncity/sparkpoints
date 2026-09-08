@@ -34,7 +34,8 @@ const $ = function (id) { return document.getElementById(id); };
 let state = {
   email: '', code: '', fullName: '', role: '', assignedClasses: [],
   canLog: false, canAmendDelete: false,
-  students: [], achievement: [], behavioural: []
+  students: [], achievement: [], behavioural: [],
+  lastRecent: [], currentDashStudentId: ''
 };
 
 /* ---------- server calls ---------- */
@@ -236,6 +237,7 @@ function loadStudentDashboard(studentId) {
   $('studentDashError').textContent = '';
   $('studentDashContent').classList.add('hidden');
   if (!studentId) return;
+  state.currentDashStudentId = studentId;
 
   call('getStudentDashboard', { studentId: studentId }).then(function (r) {
     if (!r || !r.success) { $('studentDashError').textContent = (r && r.error) || 'Could not load this student.'; return; }
@@ -261,19 +263,74 @@ function renderStudentDashboard(r) {
 
   const list = $('recentActivityList');
   list.innerHTML = '';
+  state.lastRecent = r.recent;
   if (!r.recent.length) {
     list.innerHTML = '<p class="subtitle">No activity recorded yet.</p>';
   } else {
     r.recent.forEach(function (e) {
       const row = document.createElement('div');
       row.className = 'activityRow';
+      row.id = 'entry-' + e.id;
+
+      if (e.deleted) {
+        row.innerHTML = '<strong>' + escapeHtml(e.category) + '</strong> (' + fmtPts(e.points) + ') — ' +
+          escapeHtml(e.date) + ' ' + escapeHtml(e.time || '') +
+          '<br><span class="deletedBadge">DELETED</span> <span class="subtitle">' + escapeHtml(e.deletedReason) + '</span>';
+        list.appendChild(row);
+        return;
+      }
+
+      let buttons = '';
+      if (r.canAmendDelete) {
+        buttons = '<div class="entryActions">' +
+          '<button type="button" class="smallBtn" onclick="startEdit(\'' + e.id + '\')">Edit</button> ' +
+          '<button type="button" class="smallBtn danger" onclick="confirmDelete(\'' + e.id + '\')">Delete</button>' +
+          '</div>';
+      }
       row.innerHTML = '<strong>' + escapeHtml(e.category) + '</strong> (' + fmtPts(e.points) + ') — ' +
-        escapeHtml(e.date) + ' ' + escapeHtml(e.time || '') + '<br><span class="subtitle">' + escapeHtml(e.note || '') + '</span>' +
-        '<br><span class="subtitle">Logged by ' + escapeHtml(e.staff || '') + '</span>';
+        escapeHtml(e.date) + ' ' + escapeHtml(e.time || '') +
+        '<br><span class="subtitle">' + escapeHtml(e.note || '') + '</span>' +
+        '<br><span class="subtitle">Logged by ' + escapeHtml(e.staff || '') + '</span>' + buttons;
       list.appendChild(row);
     });
   }
   $('studentDashContent').classList.remove('hidden');
+}
+
+/* ---------- amend / delete ---------- */
+
+function startEdit(id) {
+  const entry = state.lastRecent.find(function (e) { return String(e.id) === String(id); });
+  if (!entry) return;
+  const row = $('entry-' + id);
+  row.innerHTML =
+    '<label>Note</label><textarea id="editNote-' + id + '" rows="3">' + escapeHtml(entry.note || '') + '</textarea>' +
+    '<label>Action Taken</label><input id="editAction-' + id + '" value="' + escapeHtml(entry.actionTaken || '') + '">' +
+    '<label>Follow-up</label><input id="editFollowUp-' + id + '" value="' + escapeHtml(entry.followUp || '') + '">' +
+    '<div class="entryActions">' +
+    '<button type="button" class="smallBtn" onclick="saveEdit(\'' + id + '\')">Save</button> ' +
+    '<button type="button" class="smallBtn" onclick="loadStudentDashboard(state.currentDashStudentId)">Cancel</button>' +
+    '</div>';
+}
+
+function saveEdit(id) {
+  const note = $('editNote-' + id).value;
+  const actionTaken = $('editAction-' + id).value;
+  const followUp = $('editFollowUp-' + id).value;
+  call('amendEntry', { id: id, note: note, actionTaken: actionTaken, followUp: followUp }).then(function (r) {
+    if (!r || !r.success) { alert((r && r.error) || 'Could not save changes.'); return; }
+    loadStudentDashboard(state.currentDashStudentId);
+  }).catch(function () { alert('Could not reach the server.'); });
+}
+
+function confirmDelete(id) {
+  const reason = prompt('Reason for deleting this entry (required):');
+  if (reason === null) return;
+  if (reason.trim().length < 5) { alert('Please give a brief reason — at least 5 characters.'); return; }
+  call('deleteEntry', { id: id, reason: reason.trim() }).then(function (r) {
+    if (!r || !r.success) { alert((r && r.error) || 'Could not delete this entry.'); return; }
+    loadStudentDashboard(state.currentDashStudentId);
+  }).catch(function () { alert('Could not reach the server.'); });
 }
 
 /* ---------- class dashboard ---------- */
