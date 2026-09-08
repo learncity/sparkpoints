@@ -1,6 +1,6 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
-  max-width: 480px;
+  max-width: 640px;
   margin: 40px auto;
   padding: 0 16px;
   color: #222;
@@ -64,3 +64,66 @@ button:disabled { opacity: 0.5; cursor: default; }
   padding-bottom: 12px;
   margin-bottom: 8px;
 }
+
+.tabBar {
+  display: flex;
+  gap: 6px;
+  margin: 16px 0 20px;
+  flex-wrap: wrap;
+}
+
+.tabBtn {
+  margin-top: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid #999;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.tabBtn.activeTab {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+.tabPanel.hidden { display: none; }
+
+.statGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.statCard {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  flex: 1 1 100px;
+  text-align: center;
+}
+
+.statCard.small { flex: 1 1 50px; padding: 8px; }
+
+.statLabel {
+  display: block;
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.statValue { font-size: 18px; font-weight: bold; }
+.statValue.good { color: #1a6b3a; }
+.statValue.bad { color: #9b1c1c; }
+
+.activityRow {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 10px 0;
+  font-size: 14px;
+}
+
+h3 { font-size: 15px; margin-top: 22px; margin-bottom: 8px; }

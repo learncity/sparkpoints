@@ -26,6 +26,9 @@ const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxahzgarriiZeHw-RCWr8P
 const STORE_EMAIL = 'LC_SPARK_EMAIL';
 const STORE_CODE = 'LC_SPARK_CODE';
 
+const ALL_CLASSES = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
+  'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3'];
+
 const $ = function (id) { return document.getElementById(id); };
 
 let state = {
@@ -108,9 +111,38 @@ function enterPortal() {
     state.behavioural = r.behavioural;
     populateStudents();
     populateCategories();
+    populateDashboardPickers();
   }).catch(function () {
     fatal('Could not reach the server while loading the form.');
   });
+}
+
+function populateDashboardPickers() {
+  const studentSel = $('dashStudentSelect');
+  studentSel.innerHTML = '<option value="">Choose a student...</option>';
+  const sorted = [...state.students].sort(function (a, b) { return a.name.localeCompare(b.name); });
+  sorted.forEach(function (s) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name + ' — ' + s.className;
+    studentSel.appendChild(opt);
+  });
+
+  const classSel = $('dashClassSelect');
+  classSel.innerHTML = '<option value="">Choose a class...</option>';
+  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
+  classes.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    classSel.appendChild(opt);
+  });
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tabPanel').forEach(function (p) { p.classList.add('hidden'); });
+  document.querySelectorAll('.tabBtn').forEach(function (b) { b.classList.remove('activeTab'); });
+  $(tabId).classList.remove('hidden');
+  document.querySelector('.tabBtn[data-tab="' + tabId + '"]').classList.add('activeTab');
 }
 
 function populateStudents() {
@@ -198,12 +230,125 @@ function submitEntry() {
   });
 }
 
+/* ---------- student dashboard ---------- */
+
+function loadStudentDashboard(studentId) {
+  $('studentDashError').textContent = '';
+  $('studentDashContent').classList.add('hidden');
+  if (!studentId) return;
+
+  call('getStudentDashboard', { studentId: studentId }).then(function (r) {
+    if (!r || !r.success) { $('studentDashError').textContent = (r && r.error) || 'Could not load this student.'; return; }
+    renderStudentDashboard(r);
+  }).catch(function () {
+    $('studentDashError').textContent = 'Could not reach the server.';
+  });
+}
+
+function renderStudentDashboard(r) {
+  $('statAchievement').textContent = fmtPts(r.stats.achievementTerm);
+  $('statBehavioural').textContent = fmtPts(r.stats.behaviouralTerm);
+  $('statNet').textContent = r.stats.netTerm;
+  $('statTier').textContent = r.stats.tier;
+  $('statSession').textContent = r.stats.sessionNet;
+  $('statL1').textContent = r.stats.l1;
+  $('statL2').textContent = r.stats.l2;
+  $('statL3').textContent = r.stats.l3;
+  $('statL4').textContent = r.stats.l4;
+  $('statL5').textContent = r.stats.l5;
+  $('statFlag').textContent = r.stats.flag;
+  $('statRecommended').textContent = r.stats.recommendedAction;
+
+  const list = $('recentActivityList');
+  list.innerHTML = '';
+  if (!r.recent.length) {
+    list.innerHTML = '<p class="subtitle">No activity recorded yet.</p>';
+  } else {
+    r.recent.forEach(function (e) {
+      const row = document.createElement('div');
+      row.className = 'activityRow';
+      row.innerHTML = '<strong>' + escapeHtml(e.category) + '</strong> (' + fmtPts(e.points) + ') — ' +
+        escapeHtml(e.date) + '<br><span class="subtitle">' + escapeHtml(e.note || '') + '</span>' +
+        '<br><span class="subtitle">Logged by ' + escapeHtml(e.staff || '') + '</span>';
+      list.appendChild(row);
+    });
+  }
+  $('studentDashContent').classList.remove('hidden');
+}
+
+/* ---------- class dashboard ---------- */
+
+function loadClassDashboard(className) {
+  $('classDashError').textContent = '';
+  $('classDashContent').classList.add('hidden');
+  if (!className) return;
+
+  call('getClassDashboard', { className: className }).then(function (r) {
+    if (!r || !r.success) { $('classDashError').textContent = (r && r.error) || 'Could not load this class.'; return; }
+    renderClassDashboard(r);
+  }).catch(function () {
+    $('classDashError').textContent = 'Could not reach the server.';
+  });
+}
+
+function renderClassDashboard(r) {
+  $('classTotal').textContent = r.totalStudents;
+  $('classAch7d').textContent = fmtPts(r.achievement7d);
+  $('classBeh7d').textContent = fmtPts(r.behavioural7d);
+  $('classMostCommon').textContent = r.mostCommonBehaviour;
+
+  fillList('classApproachingList', r.approachingEscalation, function (s) {
+    return '<strong>' + escapeHtml(s.name) + '</strong> — L2: ' + s.l2 + ', L3: ' + s.l3 + ' — ' + escapeHtml(s.flag);
+  }, 'No students currently approaching escalation.');
+
+  fillList('classTopList', r.topAchievements, function (a) {
+    return '<strong>' + escapeHtml(a.name) + '</strong> — ' + escapeHtml(a.category) + ' (' + fmtPts(a.points) + ') — ' + escapeHtml(a.date);
+  }, 'No achievements recorded yet this term.');
+
+  fillList('classFollowUpList', r.needingFollowUp, function (f) {
+    return '<strong>' + escapeHtml(f.name) + '</strong> — ' + escapeHtml(f.category) + ' — ' + escapeHtml(f.followUp) + ' (' + escapeHtml(f.staff) + ')';
+  }, 'Nothing outstanding.');
+
+  $('classDashContent').classList.remove('hidden');
+}
+
+function fillList(id, items, renderFn, emptyText) {
+  const el = $(id);
+  el.innerHTML = '';
+  if (!items.length) { el.innerHTML = '<p class="subtitle">' + emptyText + '</p>'; return; }
+  items.forEach(function (item) {
+    const row = document.createElement('div');
+    row.className = 'activityRow';
+    row.innerHTML = renderFn(item);
+    el.appendChild(row);
+  });
+}
+
+/* ---------- small helpers ---------- */
+
+function fmtPts(n) {
+  n = Number(n || 0);
+  return (n > 0 ? '+' : '') + n;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
 /* ---------- wiring ---------- */
 
 function wire() {
   const needed = ['signInScreen', 'logScreen', 'staffEmail', 'staffCode', 'signInBtn', 'signInError',
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'termSelect', 'studentSelect', 'entryTypeSelect',
-    'categorySelect', 'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess'];
+    'categorySelect', 'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
+    'dashStudentSelect', 'studentDashError', 'studentDashContent',
+    'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
+    'statL1', 'statL2', 'statL3', 'statL4', 'statL5', 'statFlag', 'statRecommended', 'recentActivityList',
+    'dashClassSelect', 'classDashError', 'classDashContent',
+    'classTotal', 'classAch7d', 'classBeh7d', 'classMostCommon',
+    'classApproachingList', 'classTopList', 'classFollowUpList'];
   const missing = needed.filter(function (id) { return !document.getElementById(id); });
   if (missing.length) { fatal('index.html is missing these elements: ' + missing.join(', ')); return; }
 
@@ -213,6 +358,12 @@ function wire() {
   $('studentSelect').addEventListener('change', populateCategories);
   $('entryTypeSelect').addEventListener('change', populateCategories);
   $('submitBtn').addEventListener('click', submitEntry);
+
+  document.querySelectorAll('.tabBtn').forEach(function (btn) {
+    btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-tab')); });
+  });
+  $('dashStudentSelect').addEventListener('change', function () { loadStudentDashboard(this.value); });
+  $('dashClassSelect').addEventListener('change', function () { loadClassDashboard(this.value); });
 
   let savedEmail, savedCode;
   try { savedEmail = sessionStorage.getItem(STORE_EMAIL); savedCode = sessionStorage.getItem(STORE_CODE); } catch (e) {}

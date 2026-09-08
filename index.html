@@ -31,7 +31,13 @@
       <button id="signOutBtn" type="button" class="linkBtn">Sign out</button>
     </div>
 
-    <h2>Log a Point</h2>
+    <nav class="tabBar">
+      <button type="button" class="tabBtn activeTab" data-tab="logTab">Log a Point</button>
+      <button type="button" class="tabBtn" data-tab="studentTab">Student Dashboard</button>
+      <button type="button" class="tabBtn" data-tab="classTab">Class Dashboard</button>
+    </nav>
+
+    <section id="logTab" class="tabPanel">
 
     <label for="termSelect">Term</label>
     <select id="termSelect">
@@ -79,6 +85,62 @@
     <button id="submitBtn" type="button">Save Entry</button>
     <p id="logError" class="error"></p>
     <p id="logSuccess" class="success"></p>
+    </section>
+
+    <section id="studentTab" class="tabPanel hidden">
+      <label for="dashStudentSelect">Student</label>
+      <select id="dashStudentSelect"><option value="">Choose a student...</option></select>
+      <p id="studentDashError" class="error"></p>
+
+      <div id="studentDashContent" class="hidden">
+        <div class="statGrid">
+          <div class="statCard"><span class="statLabel">Achievement (Term)</span><span id="statAchievement" class="statValue good"></span></div>
+          <div class="statCard"><span class="statLabel">Behavioural (Term)</span><span id="statBehavioural" class="statValue bad"></span></div>
+          <div class="statCard"><span class="statLabel">Net (Term)</span><span id="statNet" class="statValue"></span></div>
+          <div class="statCard"><span class="statLabel">Tier</span><span id="statTier" class="statValue"></span></div>
+          <div class="statCard"><span class="statLabel">Session Net</span><span id="statSession" class="statValue"></span></div>
+        </div>
+
+        <div class="statGrid">
+          <div class="statCard small"><span class="statLabel">L1</span><span id="statL1" class="statValue"></span></div>
+          <div class="statCard small"><span class="statLabel">L2</span><span id="statL2" class="statValue"></span></div>
+          <div class="statCard small"><span class="statLabel">L3</span><span id="statL3" class="statValue"></span></div>
+          <div class="statCard small"><span class="statLabel">L4</span><span id="statL4" class="statValue"></span></div>
+          <div class="statCard small"><span class="statLabel">L5</span><span id="statL5" class="statValue"></span></div>
+        </div>
+
+        <p><strong>Escalation status:</strong> <span id="statFlag"></span></p>
+        <p><strong>Recommended action:</strong> <span id="statRecommended"></span></p>
+
+        <h3>Recent Activity</h3>
+        <div id="recentActivityList"></div>
+      </div>
+    </section>
+
+    <section id="classTab" class="tabPanel hidden">
+      <label for="dashClassSelect">Class</label>
+      <select id="dashClassSelect"><option value="">Choose a class...</option></select>
+      <p id="classDashError" class="error"></p>
+
+      <div id="classDashContent" class="hidden">
+        <div class="statGrid">
+          <div class="statCard"><span class="statLabel">Total Students</span><span id="classTotal" class="statValue"></span></div>
+          <div class="statCard"><span class="statLabel">Achievement (7d)</span><span id="classAch7d" class="statValue good"></span></div>
+          <div class="statCard"><span class="statLabel">Behavioural (7d)</span><span id="classBeh7d" class="statValue bad"></span></div>
+        </div>
+
+        <p><strong>Most common behaviour (this term):</strong> <span id="classMostCommon"></span></p>
+
+        <h3>Students Approaching Escalation</h3>
+        <div id="classApproachingList"></div>
+
+        <h3>Top Achievements (this term)</h3>
+        <div id="classTopList"></div>
+
+        <h3>Needing Follow-up (this term)</h3>
+        <div id="classFollowUpList"></div>
+      </div>
+    </section>
   </div>
 
   <script src="app.js"></script>
