@@ -268,7 +268,7 @@ function renderStudentDashboard(r) {
       const row = document.createElement('div');
       row.className = 'activityRow';
       row.innerHTML = '<strong>' + escapeHtml(e.category) + '</strong> (' + fmtPts(e.points) + ') — ' +
-        escapeHtml(e.date) + '<br><span class="subtitle">' + escapeHtml(e.note || '') + '</span>' +
+        escapeHtml(e.date) + ' ' + escapeHtml(e.time || '') + '<br><span class="subtitle">' + escapeHtml(e.note || '') + '</span>' +
         '<br><span class="subtitle">Logged by ' + escapeHtml(e.staff || '') + '</span>';
       list.appendChild(row);
     });
@@ -302,7 +302,7 @@ function renderClassDashboard(r) {
   }, 'No students currently approaching escalation.');
 
   fillList('classTopList', r.topAchievements, function (a) {
-    return '<strong>' + escapeHtml(a.name) + '</strong> — ' + escapeHtml(a.category) + ' (' + fmtPts(a.points) + ') — ' + escapeHtml(a.date);
+    return '<strong>' + escapeHtml(a.name) + '</strong> — ' + escapeHtml(a.category) + ' (' + fmtPts(a.points) + ') — ' + escapeHtml(a.date) + ' ' + escapeHtml(a.time || '');
   }, 'No achievements recorded yet this term.');
 
   fillList('classFollowUpList', r.needingFollowUp, function (f) {
