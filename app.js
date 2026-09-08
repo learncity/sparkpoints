@@ -161,13 +161,17 @@ function submitEntry() {
   const studentId = $('studentSelect').value;
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
+  const entryType = $('entryTypeSelect').value;
 
   $('logError').textContent = '';
   $('logSuccess').textContent = '';
 
   if (!studentId) { $('logError').textContent = 'Choose a student.'; return; }
   if (!category) { $('logError').textContent = 'Choose a category.'; return; }
-  if (note.length < 10) { $('logError').textContent = 'Note must describe what happened — at least 10 characters.'; return; }
+  if (entryType === 'Behavioural Points' && note.length < 10) {
+    $('logError').textContent = 'Note must describe what happened — at least 10 characters for a Behavioural Points entry.';
+    return;
+  }
 
   $('submitBtn').disabled = true;
   $('submitBtn').textContent = 'Saving...';
