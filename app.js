@@ -110,6 +110,7 @@ function enterPortal() {
     state.students = r.students;
     state.achievement = r.achievement;
     state.behavioural = r.behavioural;
+    $('currentTermDisplay').textContent = 'Logging for: ' + r.term + ', ' + r.session;
     populateStudents();
     populateCategories();
     populateDashboardPickers();
@@ -215,8 +216,7 @@ function submitEntry() {
     category: category,
     note: note,
     actionTaken: $('actionSelect').value,
-    followUp: $('followUpSelect').value,
-    term: $('termSelect').value
+    followUp: $('followUpSelect').value
   }).then(function (r) {
     $('submitBtn').disabled = false;
     $('submitBtn').textContent = 'Save Entry';
@@ -399,7 +399,7 @@ function escapeHtml(s) {
 
 function wire() {
   const needed = ['signInScreen', 'logScreen', 'staffEmail', 'staffCode', 'signInBtn', 'signInError',
-    'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'termSelect', 'studentSelect', 'entryTypeSelect',
+    'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay', 'studentSelect', 'entryTypeSelect',
     'categorySelect', 'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
     'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
