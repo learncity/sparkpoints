@@ -192,6 +192,8 @@ function populateCategories() {
   const sel = $('categorySelect');
   sel.innerHTML = '';
 
+  $('notifyParentArea').classList.toggle('hidden', entryType !== 'Behavioural Points');
+
   if (!section) { sel.innerHTML = '<option value="">Choose a student first</option>'; return; }
 
   const list = entryType === 'Achievement Points' ? state.achievement : state.behavioural;
@@ -279,7 +281,8 @@ function submitEntry() {
     category: category,
     note: note,
     actionTaken: $('actionSelect').value,
-    followUp: $('followUpSelect').value
+    followUp: $('followUpSelect').value,
+    notifyParent: $('notifyParentToggle').checked
   }).then(function (r) {
     $('submitBtn').disabled = false;
     $('submitBtn').textContent = 'Save Entry';
@@ -320,7 +323,8 @@ function submitBulkEntry() {
     category: category,
     note: note,
     actionTaken: $('actionSelect').value,
-    followUp: $('followUpSelect').value
+    followUp: $('followUpSelect').value,
+    notifyParent: $('notifyParentToggle').checked
   }).then(function (r) {
     $('submitBtn').disabled = false;
     $('submitBtn').textContent = 'Save Entry';
@@ -505,7 +509,8 @@ function wire() {
   const needed = ['signInScreen', 'logScreen', 'staffEmail', 'staffCode', 'signInBtn', 'signInError',
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
     'bulkModeToggle', 'singleStudentArea', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
-    'entryTypeSelect', 'categorySelect', 'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
+    'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle',
+    'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
     'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
     'statL1', 'statL2', 'statL3', 'statL4', 'statL5', 'statFlag', 'statRecommended', 'recentActivityList',
