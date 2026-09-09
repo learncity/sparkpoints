@@ -41,8 +41,20 @@
 
     <p class="subtitle" id="currentTermDisplay">Loading current term...</p>
 
-    <label for="studentSelect">Student</label>
-    <select id="studentSelect"><option value="">Loading students...</option></select>
+    <label class="check"><input type="checkbox" id="bulkModeToggle"> Log for multiple students at once</label>
+
+    <div id="singleStudentArea">
+      <label for="studentSelect">Student</label>
+      <select id="studentSelect"><option value="">Loading students...</option></select>
+    </div>
+
+    <div id="bulkStudentArea" class="hidden">
+      <label for="bulkClassSelect">Class</label>
+      <select id="bulkClassSelect"><option value="">Choose a class...</option></select>
+
+      <label>Students</label>
+      <div id="bulkStudentList" class="checklistBox"><p class="subtitle">Choose a class first.</p></div>
+    </div>
 
     <label for="entryTypeSelect">Entry Type</label>
     <select id="entryTypeSelect">

@@ -35,7 +35,8 @@ let state = {
   email: '', code: '', fullName: '', role: '', assignedClasses: [],
   canLog: false, canAmendDelete: false,
   students: [], achievement: [], behavioural: [],
-  lastRecent: [], currentDashStudentId: ''
+  lastRecent: [], currentDashStudentId: '',
+  bulkMode: false
 };
 
 /* ---------- server calls ---------- */
@@ -114,6 +115,7 @@ function enterPortal() {
     populateStudents();
     populateCategories();
     populateDashboardPickers();
+    populateBulkClasses();
   }).catch(function () {
     fatal('Could not reach the server while loading the form.');
   });
@@ -169,16 +171,31 @@ function currentStudent() {
   return state.students.find(function (s) { return s.id === id; });
 }
 
-function populateCategories() {
+function sectionForClass(className) {
+  return className && className.indexOf('Primary') === 0 ? 'Primary' : 'Secondary';
+}
+
+/* Returns the section to filter categories by, regardless of which mode
+   is active — the single student's section, or the bulk class's section. */
+function currentSection() {
+  if (state.bulkMode) {
+    const cls = $('bulkClassSelect').value;
+    return cls ? sectionForClass(cls) : '';
+  }
   const student = currentStudent();
+  return student ? student.section : '';
+}
+
+function populateCategories() {
+  const section = currentSection();
   const entryType = $('entryTypeSelect').value;
   const sel = $('categorySelect');
   sel.innerHTML = '';
 
-  if (!student) { sel.innerHTML = '<option value="">Choose a student first</option>'; return; }
+  if (!section) { sel.innerHTML = '<option value="">Choose a student first</option>'; return; }
 
   const list = entryType === 'Achievement Points' ? state.achievement : state.behavioural;
-  const options = list.filter(function (c) { return c.section === student.section; });
+  const options = list.filter(function (c) { return c.section === section; });
 
   if (!options.length) { sel.innerHTML = '<option value="">No categories for this section</option>'; return; }
   options.forEach(function (c) {
@@ -189,9 +206,55 @@ function populateCategories() {
   });
 }
 
+/* ---------- bulk mode ---------- */
+
+function toggleBulkMode() {
+  state.bulkMode = $('bulkModeToggle').checked;
+  $('singleStudentArea').classList.toggle('hidden', state.bulkMode);
+  $('bulkStudentArea').classList.toggle('hidden', !state.bulkMode);
+  populateCategories();
+}
+
+function populateBulkClasses() {
+  const sel = $('bulkClassSelect');
+  sel.innerHTML = '<option value="">Choose a class...</option>';
+  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
+  classes.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+function populateBulkStudentList() {
+  const cls = $('bulkClassSelect').value;
+  const box = $('bulkStudentList');
+  box.innerHTML = '';
+  if (!cls) { box.innerHTML = '<p class="subtitle">Choose a class first.</p>'; populateCategories(); return; }
+
+  const inClass = state.students.filter(function (s) { return s.className === cls; })
+    .sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+  if (!inClass.length) { box.innerHTML = '<p class="subtitle">No students found in this class.</p>'; populateCategories(); return; }
+
+  inClass.forEach(function (s) {
+    const label = document.createElement('label');
+    label.className = 'check';
+    label.innerHTML = '<input type="checkbox" class="bulkStudentCheck" value="' + s.id + '"> ' + escapeHtml(s.name);
+    box.appendChild(label);
+  });
+  populateCategories();
+}
+
+function getBulkSelectedIds() {
+  return Array.prototype.slice.call(document.querySelectorAll('.bulkStudentCheck:checked')).map(function (el) { return el.value; });
+}
+
 /* ---------- submitting an entry ---------- */
 
 function submitEntry() {
+  if (state.bulkMode) { submitBulkEntry(); return; }
+
   const studentId = $('studentSelect').value;
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
@@ -229,6 +292,47 @@ function submitEntry() {
     $('submitBtn').disabled = false;
     $('submitBtn').textContent = 'Save Entry';
     $('logError').textContent = 'Could not reach the server. Your entry was not saved — try again.';
+  });
+}
+
+function submitBulkEntry() {
+  const studentIds = getBulkSelectedIds();
+  const category = $('categorySelect').value;
+  const note = $('noteInput').value.trim();
+  const entryType = $('entryTypeSelect').value;
+
+  $('logError').textContent = '';
+  $('logSuccess').textContent = '';
+
+  if (!studentIds.length) { $('logError').textContent = 'Tick at least one student.'; return; }
+  if (!category) { $('logError').textContent = 'Choose a category.'; return; }
+  if (entryType === 'Behavioural Points' && note.length < 10) {
+    $('logError').textContent = 'Note must describe what happened — at least 10 characters for a Behavioural Points entry.';
+    return;
+  }
+
+  $('submitBtn').disabled = true;
+  $('submitBtn').textContent = 'Saving...';
+
+  call('logBulkEntries', {
+    studentIds: studentIds,
+    entryType: entryType,
+    category: category,
+    note: note,
+    actionTaken: $('actionSelect').value,
+    followUp: $('followUpSelect').value
+  }).then(function (r) {
+    $('submitBtn').disabled = false;
+    $('submitBtn').textContent = 'Save Entry';
+    if (!r || !r.success) { $('logError').textContent = (r && r.error) || 'Could not save these entries.'; return; }
+    $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
+      r.count + ' student' + (r.count === 1 ? '' : 's') + '. ' + r.notified + ' parent' + (r.notified === 1 ? '' : 's') + ' notified.';
+    $('noteInput').value = '';
+    document.querySelectorAll('.bulkStudentCheck:checked').forEach(function (el) { el.checked = false; });
+  }).catch(function () {
+    $('submitBtn').disabled = false;
+    $('submitBtn').textContent = 'Save Entry';
+    $('logError').textContent = 'Could not reach the server. Nothing was saved — try again.';
   });
 }
 
@@ -399,8 +503,9 @@ function escapeHtml(s) {
 
 function wire() {
   const needed = ['signInScreen', 'logScreen', 'staffEmail', 'staffCode', 'signInBtn', 'signInError',
-    'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay', 'studentSelect', 'entryTypeSelect',
-    'categorySelect', 'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
+    'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
+    'bulkModeToggle', 'singleStudentArea', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
+    'entryTypeSelect', 'categorySelect', 'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
     'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
     'statL1', 'statL2', 'statL3', 'statL4', 'statL5', 'statFlag', 'statRecommended', 'recentActivityList',
@@ -416,6 +521,8 @@ function wire() {
   $('studentSelect').addEventListener('change', populateCategories);
   $('entryTypeSelect').addEventListener('change', populateCategories);
   $('submitBtn').addEventListener('click', submitEntry);
+  $('bulkModeToggle').addEventListener('change', toggleBulkMode);
+  $('bulkClassSelect').addEventListener('change', populateBulkStudentList);
 
   document.querySelectorAll('.tabBtn').forEach(function (btn) {
     btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-tab')); });
