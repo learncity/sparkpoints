@@ -26,7 +26,7 @@ const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxahzgarriiZeHw-RCWr8P
 const STORE_EMAIL = 'LC_SPARK_EMAIL';
 const STORE_CODE = 'LC_SPARK_CODE';
 
-const ALL_CLASSES = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
+const ALL_CLASSES = ['Nursery 1', 'Nursery 2', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
   'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3'];
 
 const $ = function (id) { return document.getElementById(id); };
@@ -172,7 +172,12 @@ function currentStudent() {
 }
 
 function sectionForClass(className) {
-  return className && className.indexOf('Primary') === 0 ? 'Primary' : 'Secondary';
+  /* Nursery is its own section — separate category library and tier
+     scale from Primary, not an alias of it. */
+  if (!className) return 'Secondary';
+  if (className.indexOf('Nursery') === 0) return 'Nursery';
+  if (className.indexOf('Primary') === 0) return 'Primary';
+  return 'Secondary';
 }
 
 /* Returns the section to filter categories by, regardless of which mode
