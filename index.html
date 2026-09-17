@@ -12,13 +12,17 @@
     <h1>Spark Points</h1>
     <p class="subtitle">Learn City Model Schools &amp; Academy</p>
 
-    <label for="staffEmail">Email</label>
-    <input type="email" id="staffEmail" autocomplete="username">
+    <form id="signInForm" autocomplete="on">
+      <label for="staffEmail">Email</label>
+      <input type="email" id="staffEmail" autocomplete="username">
 
-    <label for="staffCode">Code</label>
-    <input type="password" id="staffCode" autocomplete="current-password" inputmode="numeric">
+      <label for="staffCode">Code</label>
+      <input type="password" id="staffCode" autocomplete="current-password" inputmode="numeric">
 
-    <button id="signInBtn" type="button">Sign In</button>
+      <label class="check"><input type="checkbox" id="rememberMeToggle"> Remember me on this device</label>
+
+      <button id="signInBtn" type="submit">Sign In</button>
+    </form>
     <p id="signInError" class="error"></p>
   </div>
 

@@ -73,8 +73,22 @@ function trySignIn(email, code) {
     state.canAmendDelete = r.canAmendDelete;
 
     try {
-      sessionStorage.setItem(STORE_EMAIL, state.email);
-      sessionStorage.setItem(STORE_CODE, state.code);
+      /* "Remember me" persists across visits (localStorage); unchecked
+         still keeps the existing within-tab convenience (sessionStorage),
+         same as before this checkbox existed. Only one is ever set at a
+         time, so unchecking it on a later sign-in correctly stops it
+         persisting from here on. */
+      if ($('rememberMeToggle') && $('rememberMeToggle').checked) {
+        localStorage.setItem(STORE_EMAIL, state.email);
+        localStorage.setItem(STORE_CODE, state.code);
+        sessionStorage.removeItem(STORE_EMAIL);
+        sessionStorage.removeItem(STORE_CODE);
+      } else {
+        sessionStorage.setItem(STORE_EMAIL, state.email);
+        sessionStorage.setItem(STORE_CODE, state.code);
+        localStorage.removeItem(STORE_EMAIL);
+        localStorage.removeItem(STORE_CODE);
+      }
     } catch (e) { /* private browsing — sign-in still works for this session */ }
 
     enterPortal();
@@ -85,7 +99,10 @@ function trySignIn(email, code) {
 }
 
 function signOut() {
-  try { sessionStorage.removeItem(STORE_EMAIL); sessionStorage.removeItem(STORE_CODE); } catch (e) {}
+  try {
+    sessionStorage.removeItem(STORE_EMAIL); sessionStorage.removeItem(STORE_CODE);
+    localStorage.removeItem(STORE_EMAIL); localStorage.removeItem(STORE_CODE);
+  } catch (e) {}
   location.reload();
 }
 
@@ -511,7 +528,7 @@ function escapeHtml(s) {
 /* ---------- wiring ---------- */
 
 function wire() {
-  const needed = ['signInScreen', 'logScreen', 'staffEmail', 'staffCode', 'signInBtn', 'signInError',
+  const needed = ['signInScreen', 'logScreen', 'signInForm', 'staffEmail', 'staffCode', 'rememberMeToggle', 'signInBtn', 'signInError',
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
     'bulkModeToggle', 'singleStudentArea', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
     'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle',
@@ -525,8 +542,10 @@ function wire() {
   const missing = needed.filter(function (id) { return !document.getElementById(id); });
   if (missing.length) { fatal('index.html is missing these elements: ' + missing.join(', ')); return; }
 
-  $('signInBtn').addEventListener('click', function () { trySignIn($('staffEmail').value, $('staffCode').value); });
-  $('staffCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') trySignIn($('staffEmail').value, $('staffCode').value); });
+  $('signInForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    trySignIn($('staffEmail').value, $('staffCode').value);
+  });
   $('signOutBtn').addEventListener('click', signOut);
   $('studentSelect').addEventListener('change', populateCategories);
   $('entryTypeSelect').addEventListener('change', populateCategories);
@@ -556,10 +575,14 @@ function wire() {
   }
 
   let savedEmail, savedCode;
-  try { savedEmail = sessionStorage.getItem(STORE_EMAIL); savedCode = sessionStorage.getItem(STORE_CODE); } catch (e) {}
+  try {
+    savedEmail = localStorage.getItem(STORE_EMAIL) || sessionStorage.getItem(STORE_EMAIL);
+    savedCode = localStorage.getItem(STORE_CODE) || sessionStorage.getItem(STORE_CODE);
+  } catch (e) {}
   if (savedEmail && savedCode) {
     $('staffEmail').value = savedEmail;
     $('staffCode').value = savedCode;
+    try { if (localStorage.getItem(STORE_EMAIL)) $('rememberMeToggle').checked = true; } catch (e) {}
     trySignIn(savedEmail, savedCode);
   }
 }
