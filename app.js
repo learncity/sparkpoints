@@ -327,12 +327,14 @@ function getBulkSelectedIds() {
    who it's for and whether a parent will be notified, before anything is
    actually sent. This is deliberately NOT a native confirm() popup — those
    get reflexively dismissed on a high-frequency action like this one, which
-   would defeat the point. pendingSave holds whichever save function the
-   Confirm button should run once the person has actually looked and agreed. */
-/* While the confirmation panel is open, the form is locked. Without this,
-   someone could tweak the category or the notify-parent toggle after
-   reading the summary but before clicking Confirm, and the entry actually
-   saved would quietly no longer match what they confirmed. */
+   would defeat the point. See pendingEntry below for how the confirmed data
+   and the saved data are guaranteed to be the same thing. */
+/* While the confirmation panel is open, the form is locked. This is
+   defense-in-depth, not the primary safeguard — the primary one is that
+   doSingleSave/doBulkSave never re-read the form at all (see pendingEntry
+   above them). Locking just stops the form from looking editable while a
+   confirmation is showing, which would be confusing even though it can no
+   longer change what gets saved. */
 function confirmLockFields() {
   return ['singleClassSelect', 'studentSelect', 'bulkClassSelect', 'entryTypeSelect', 'categorySelect',
     'notifyParentToggle', 'noteInput', 'actionSelect', 'followUpSelect'];
@@ -346,7 +348,15 @@ function unlockForm() {
   document.querySelectorAll('.bulkStudentCheck').forEach(function (el) { el.disabled = false; });
 }
 
-let pendingSave = null;
+/* pendingEntry holds the EXACT data that was shown in the confirmation —
+   captured once, at the moment Save Entry was clicked. doSingleSave/
+   doBulkSave use this snapshot, and ONLY this snapshot — they never read
+   the form a second time. This is deliberate: reading the form twice
+   (once for the confirmation text, again at save time) is a real
+   vulnerability whenever anything can change the form state in between —
+   a gap in the lock, a timing issue, anything. Confirming and saving must
+   use the same frozen data, or the confirmation can't be trusted. */
+let pendingEntry = null;
 
 function submitEntry() {
   if (state.bulkMode) { prepareBulkConfirm(); return; }
@@ -358,6 +368,9 @@ function prepareSingleConfirm() {
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
   const entryType = $('entryTypeSelect').value;
+  const notifyParent = $('notifyParentToggle').checked;
+  const actionTaken = $('actionSelect').value;
+  const followUp = $('followUpSelect').value;
 
   $('logError').textContent = '';
   $('logSuccess').textContent = '';
@@ -370,40 +383,44 @@ function prepareSingleConfirm() {
   }
 
   const student = currentStudent();
-  const willNotify = entryType === 'Behavioural Points' && $('notifyParentToggle').checked;
+  const willNotify = entryType === 'Behavioural Points' && notifyParent;
+
+  // Frozen at this exact moment — this, and only this, is what gets saved.
+  pendingEntry = {
+    mode: 'single', studentId: studentId, category: category, note: note, entryType: entryType,
+    notifyParent: notifyParent, actionTaken: actionTaken, followUp: followUp,
+    studentName: student ? student.name : '', studentClass: student ? student.className : ''
+  };
+
   $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' +
-    escapeHtml(student ? student.name : '') + '</strong> (' + escapeHtml(student ? student.className : '') + ').' +
+    escapeHtml(pendingEntry.studentName) + '</strong> (' + escapeHtml(pendingEntry.studentClass) + ').' +
     (willNotify ? '<br><strong>The parent will be notified.</strong>' : '<br>The parent will not be notified for this entry.');
 
-  pendingSave = doSingleSave;
   lockFormForConfirm();
   $('submitBtn').classList.add('hidden');
   $('confirmPanel').classList.remove('hidden');
 }
 
 function doSingleSave() {
-  const studentId = $('studentSelect').value;
-  const category = $('categorySelect').value;
-  const note = $('noteInput').value.trim();
-  const entryType = $('entryTypeSelect').value;
+  const entry = pendingEntry;
+  if (!entry) return;
 
   $('confirmSaveBtn').disabled = true;
   $('confirmSaveBtn').textContent = 'Saving...';
 
   call('logEntry', {
-    studentId: studentId,
-    entryType: entryType,
-    category: category,
-    note: note,
-    actionTaken: $('actionSelect').value,
-    followUp: $('followUpSelect').value,
-    notifyParent: $('notifyParentToggle').checked
+    studentId: entry.studentId,
+    entryType: entry.entryType,
+    category: entry.category,
+    note: entry.note,
+    actionTaken: entry.actionTaken,
+    followUp: entry.followUp,
+    notifyParent: entry.notifyParent
   }).then(function (r) {
     endConfirm();
     if (!r || !r.success) { $('logError').textContent = (r && r.error) || 'Could not save the entry.'; return; }
     $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
-      (currentStudent() ? currentStudent().name : 'the student') + '.' +
-      (r.parentNotified ? ' Parent notified.' : '');
+      entry.studentName + '.' + (r.parentNotified ? ' Parent notified.' : '');
     $('noteInput').value = '';
   }).catch(function () {
     endConfirm();
@@ -416,6 +433,9 @@ function prepareBulkConfirm() {
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
   const entryType = $('entryTypeSelect').value;
+  const notifyParent = $('notifyParentToggle').checked;
+  const actionTaken = $('actionSelect').value;
+  const followUp = $('followUpSelect').value;
 
   $('logError').textContent = '';
   $('logSuccess').textContent = '';
@@ -427,40 +447,43 @@ function prepareBulkConfirm() {
     return;
   }
 
-  const willNotify = entryType === 'Behavioural Points' && $('notifyParentToggle').checked;
+  const willNotify = entryType === 'Behavioural Points' && notifyParent;
   const names = studentIds.map(function (id) {
     const s = state.students.find(function (x) { return x.id === id; });
     return s ? s.name : id;
   });
   const nameList = names.length <= 3 ? names.join(', ') : (names.slice(0, 3).join(', ') + ' and ' + (names.length - 3) + ' more');
 
+  // Frozen at this exact moment — this, and only this, is what gets saved.
+  pendingEntry = {
+    mode: 'bulk', studentIds: studentIds, category: category, note: note, entryType: entryType,
+    notifyParent: notifyParent, actionTaken: actionTaken, followUp: followUp, names: names
+  };
+
   $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' + names.length +
     ' student' + (names.length === 1 ? '' : 's') + '</strong>: ' + escapeHtml(nameList) + '.' +
     (willNotify ? '<br><strong>' + names.length + ' parent' + (names.length === 1 ? '' : 's') + ' will be notified.</strong>' : '<br>Parents will not be notified for this entry.');
 
-  pendingSave = doBulkSave;
   lockFormForConfirm();
   $('submitBtn').classList.add('hidden');
   $('confirmPanel').classList.remove('hidden');
 }
 
 function doBulkSave() {
-  const studentIds = getBulkSelectedIds();
-  const category = $('categorySelect').value;
-  const note = $('noteInput').value.trim();
-  const entryType = $('entryTypeSelect').value;
+  const entry = pendingEntry;
+  if (!entry) return;
 
   $('confirmSaveBtn').disabled = true;
   $('confirmSaveBtn').textContent = 'Saving...';
 
   call('logBulkEntries', {
-    studentIds: studentIds,
-    entryType: entryType,
-    category: category,
-    note: note,
-    actionTaken: $('actionSelect').value,
-    followUp: $('followUpSelect').value,
-    notifyParent: $('notifyParentToggle').checked
+    studentIds: entry.studentIds,
+    entryType: entry.entryType,
+    category: entry.category,
+    note: entry.note,
+    actionTaken: entry.actionTaken,
+    followUp: entry.followUp,
+    notifyParent: entry.notifyParent
   }).then(function (r) {
     endConfirm();
     if (!r || !r.success) { $('logError').textContent = (r && r.error) || 'Could not save these entries.'; return; }
@@ -475,14 +498,15 @@ function doBulkSave() {
 }
 
 function confirmAndSave() {
-  if (pendingSave) pendingSave();
+  if (!pendingEntry) return;
+  if (pendingEntry.mode === 'bulk') doBulkSave(); else doSingleSave();
 }
 
 function cancelConfirm() {
   $('confirmPanel').classList.add('hidden');
   $('submitBtn').classList.remove('hidden');
   unlockForm();
-  pendingSave = null;
+  pendingEntry = null;
 }
 
 function endConfirm() {
@@ -491,7 +515,7 @@ function endConfirm() {
   $('confirmPanel').classList.add('hidden');
   $('submitBtn').classList.remove('hidden');
   unlockForm();
-  pendingSave = null;
+  pendingEntry = null;
 }
 
 /* ---------- student dashboard ---------- */
