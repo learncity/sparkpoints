@@ -32,11 +32,11 @@ const ALL_CLASSES = ['Nursery 1', 'Nursery 2', 'Primary 1', 'Primary 2', 'Primar
 const $ = function (id) { return document.getElementById(id); };
 
 let state = {
-  email: '', code: '', fullName: '', role: '', assignedClasses: [],
+  email: '', code: '', fullName: '', role: '', assignedClasses: [], homeClass: '',
   canLog: false, canAmendDelete: false,
   students: [], achievement: [], behavioural: [],
   lastRecent: [], currentDashStudentId: '',
-  bulkMode: false
+  bulkMode: false, currentSingleClass: ''
 };
 
 /* ---------- server calls ---------- */
@@ -69,6 +69,7 @@ function trySignIn(email, code) {
     state.fullName = r.fullName;
     state.role = r.role;
     state.assignedClasses = r.assignedClasses;
+    state.homeClass = r.homeClass || '';
     state.canLog = r.canLog;
     state.canAmendDelete = r.canAmendDelete;
 
@@ -129,7 +130,7 @@ function enterPortal() {
     state.achievement = r.achievement;
     state.behavioural = r.behavioural;
     $('currentTermDisplay').textContent = 'Logging for: ' + r.term + ', ' + r.session;
-    populateStudents();
+    populateSingleClasses();
     populateCategories();
     populateDashboardPickers();
     populateBulkClasses();
@@ -166,15 +167,53 @@ function switchTab(tabId) {
   document.querySelector('.tabBtn[data-tab="' + tabId + '"]').classList.add('activeTab');
 }
 
-function populateStudents() {
-  const sel = $('studentSelect');
-  sel.innerHTML = '';
-  if (!state.students.length) {
-    sel.innerHTML = '<option value="">No students in your assigned classes</option>';
+/* Single-entry mode used to show every student across every one of a
+   staff member's assigned classes in one merged, name-sorted list. For
+   anyone covering more than one class (chiefly Section Heads), that made
+   it easy to pick a same-first-name student from the WRONG class by
+   mistake — exactly what happened here. Now it defaults to just their
+   Home Class, with an explicit class switcher for when they deliberately
+   need to log for a different class they cover. A Class Teacher with only
+   one assigned class never sees the picker at all — there's nothing to
+   switch between. */
+function populateSingleClasses() {
+  const area = $('singleClassArea');
+  const sel = $('singleClassSelect');
+  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
+
+  if (classes.length <= 1) {
+    area.classList.add('hidden');
+    state.currentSingleClass = classes[0] || '';
+    populateStudentsForSingleClass();
     return;
   }
-  const sorted = [...state.students].sort(function (a, b) { return a.name.localeCompare(b.name); });
-  sorted.forEach(function (s) {
+
+  area.classList.remove('hidden');
+  sel.innerHTML = '';
+  classes.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  const defaultClass = (state.homeClass && classes.indexOf(state.homeClass) !== -1) ? state.homeClass : classes[0];
+  sel.value = defaultClass;
+  state.currentSingleClass = defaultClass;
+  populateStudentsForSingleClass();
+}
+
+function populateStudentsForSingleClass() {
+  const sel = $('studentSelect');
+  sel.innerHTML = '';
+  const cls = state.currentSingleClass;
+  const inClass = state.students.filter(function (s) { return s.className === cls; })
+    .sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+  if (!inClass.length) {
+    sel.innerHTML = '<option value="">No students in this class</option>';
+    populateCategories();
+    return;
+  }
+  inClass.forEach(function (s) {
     const opt = document.createElement('option');
     opt.value = s.id;
     opt.textContent = s.name + ' — ' + s.className;
@@ -236,6 +275,7 @@ function toggleBulkMode() {
   state.bulkMode = $('bulkModeToggle').checked;
   $('singleStudentArea').classList.toggle('hidden', state.bulkMode);
   $('bulkStudentArea').classList.toggle('hidden', !state.bulkMode);
+  cancelConfirm(); // a confirmation prepared for the old mode no longer matches what's on screen
   populateCategories();
 }
 
@@ -248,6 +288,13 @@ function populateBulkClasses() {
     opt.value = c; opt.textContent = c;
     sel.appendChild(opt);
   });
+  /* Same reasoning as the single-entry picker: default to their own Home
+     Class rather than leaving it blank, so the common case doesn't need an
+     extra click — but it's still just a default, freely changeable. */
+  if (state.homeClass && classes.indexOf(state.homeClass) !== -1) {
+    sel.value = state.homeClass;
+    populateBulkStudentList();
+  }
 }
 
 function populateBulkStudentList() {
@@ -276,9 +323,37 @@ function getBulkSelectedIds() {
 
 /* ---------- submitting an entry ---------- */
 
-function submitEntry() {
-  if (state.bulkMode) { submitBulkEntry(); return; }
+/* Every save now goes through an on-page confirmation step showing exactly
+   who it's for and whether a parent will be notified, before anything is
+   actually sent. This is deliberately NOT a native confirm() popup — those
+   get reflexively dismissed on a high-frequency action like this one, which
+   would defeat the point. pendingSave holds whichever save function the
+   Confirm button should run once the person has actually looked and agreed. */
+/* While the confirmation panel is open, the form is locked. Without this,
+   someone could tweak the category or the notify-parent toggle after
+   reading the summary but before clicking Confirm, and the entry actually
+   saved would quietly no longer match what they confirmed. */
+function confirmLockFields() {
+  return ['singleClassSelect', 'studentSelect', 'bulkClassSelect', 'entryTypeSelect', 'categorySelect',
+    'notifyParentToggle', 'noteInput', 'actionSelect', 'followUpSelect'];
+}
+function lockFormForConfirm() {
+  confirmLockFields().forEach(function (id) { const el = $(id); if (el) el.disabled = true; });
+  document.querySelectorAll('.bulkStudentCheck').forEach(function (el) { el.disabled = true; });
+}
+function unlockForm() {
+  confirmLockFields().forEach(function (id) { const el = $(id); if (el) el.disabled = false; });
+  document.querySelectorAll('.bulkStudentCheck').forEach(function (el) { el.disabled = false; });
+}
 
+let pendingSave = null;
+
+function submitEntry() {
+  if (state.bulkMode) { prepareBulkConfirm(); return; }
+  prepareSingleConfirm();
+}
+
+function prepareSingleConfirm() {
   const studentId = $('studentSelect').value;
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
@@ -294,33 +369,49 @@ function submitEntry() {
     return;
   }
 
-  $('submitBtn').disabled = true;
-  $('submitBtn').textContent = 'Saving...';
+  const student = currentStudent();
+  const willNotify = entryType === 'Behavioural Points' && $('notifyParentToggle').checked;
+  $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' +
+    escapeHtml(student ? student.name : '') + '</strong> (' + escapeHtml(student ? student.className : '') + ').' +
+    (willNotify ? '<br><strong>The parent will be notified.</strong>' : '<br>The parent will not be notified for this entry.');
+
+  pendingSave = doSingleSave;
+  lockFormForConfirm();
+  $('submitBtn').classList.add('hidden');
+  $('confirmPanel').classList.remove('hidden');
+}
+
+function doSingleSave() {
+  const studentId = $('studentSelect').value;
+  const category = $('categorySelect').value;
+  const note = $('noteInput').value.trim();
+  const entryType = $('entryTypeSelect').value;
+
+  $('confirmSaveBtn').disabled = true;
+  $('confirmSaveBtn').textContent = 'Saving...';
 
   call('logEntry', {
     studentId: studentId,
-    entryType: $('entryTypeSelect').value,
+    entryType: entryType,
     category: category,
     note: note,
     actionTaken: $('actionSelect').value,
     followUp: $('followUpSelect').value,
     notifyParent: $('notifyParentToggle').checked
   }).then(function (r) {
-    $('submitBtn').disabled = false;
-    $('submitBtn').textContent = 'Save Entry';
+    endConfirm();
     if (!r || !r.success) { $('logError').textContent = (r && r.error) || 'Could not save the entry.'; return; }
     $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
       (currentStudent() ? currentStudent().name : 'the student') + '.' +
       (r.parentNotified ? ' Parent notified.' : '');
     $('noteInput').value = '';
   }).catch(function () {
-    $('submitBtn').disabled = false;
-    $('submitBtn').textContent = 'Save Entry';
+    endConfirm();
     $('logError').textContent = 'Could not reach the server. Your entry was not saved — try again.';
   });
 }
 
-function submitBulkEntry() {
+function prepareBulkConfirm() {
   const studentIds = getBulkSelectedIds();
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
@@ -336,8 +427,31 @@ function submitBulkEntry() {
     return;
   }
 
-  $('submitBtn').disabled = true;
-  $('submitBtn').textContent = 'Saving...';
+  const willNotify = entryType === 'Behavioural Points' && $('notifyParentToggle').checked;
+  const names = studentIds.map(function (id) {
+    const s = state.students.find(function (x) { return x.id === id; });
+    return s ? s.name : id;
+  });
+  const nameList = names.length <= 3 ? names.join(', ') : (names.slice(0, 3).join(', ') + ' and ' + (names.length - 3) + ' more');
+
+  $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' + names.length +
+    ' student' + (names.length === 1 ? '' : 's') + '</strong>: ' + escapeHtml(nameList) + '.' +
+    (willNotify ? '<br><strong>' + names.length + ' parent' + (names.length === 1 ? '' : 's') + ' will be notified.</strong>' : '<br>Parents will not be notified for this entry.');
+
+  pendingSave = doBulkSave;
+  lockFormForConfirm();
+  $('submitBtn').classList.add('hidden');
+  $('confirmPanel').classList.remove('hidden');
+}
+
+function doBulkSave() {
+  const studentIds = getBulkSelectedIds();
+  const category = $('categorySelect').value;
+  const note = $('noteInput').value.trim();
+  const entryType = $('entryTypeSelect').value;
+
+  $('confirmSaveBtn').disabled = true;
+  $('confirmSaveBtn').textContent = 'Saving...';
 
   call('logBulkEntries', {
     studentIds: studentIds,
@@ -348,18 +462,36 @@ function submitBulkEntry() {
     followUp: $('followUpSelect').value,
     notifyParent: $('notifyParentToggle').checked
   }).then(function (r) {
-    $('submitBtn').disabled = false;
-    $('submitBtn').textContent = 'Save Entry';
+    endConfirm();
     if (!r || !r.success) { $('logError').textContent = (r && r.error) || 'Could not save these entries.'; return; }
     $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
       r.count + ' student' + (r.count === 1 ? '' : 's') + '. ' + r.notified + ' parent' + (r.notified === 1 ? '' : 's') + ' notified.';
     $('noteInput').value = '';
     document.querySelectorAll('.bulkStudentCheck:checked').forEach(function (el) { el.checked = false; });
   }).catch(function () {
-    $('submitBtn').disabled = false;
-    $('submitBtn').textContent = 'Save Entry';
+    endConfirm();
     $('logError').textContent = 'Could not reach the server. Nothing was saved — try again.';
   });
+}
+
+function confirmAndSave() {
+  if (pendingSave) pendingSave();
+}
+
+function cancelConfirm() {
+  $('confirmPanel').classList.add('hidden');
+  $('submitBtn').classList.remove('hidden');
+  unlockForm();
+  pendingSave = null;
+}
+
+function endConfirm() {
+  $('confirmSaveBtn').disabled = false;
+  $('confirmSaveBtn').textContent = 'Confirm & Save';
+  $('confirmPanel').classList.add('hidden');
+  $('submitBtn').classList.remove('hidden');
+  unlockForm();
+  pendingSave = null;
 }
 
 /* ---------- student dashboard ---------- */
@@ -530,9 +662,9 @@ function escapeHtml(s) {
 function wire() {
   const needed = ['signInScreen', 'logScreen', 'signInForm', 'staffEmail', 'staffCode', 'rememberMeToggle', 'signInBtn', 'signInError',
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
-    'bulkModeToggle', 'singleStudentArea', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
+    'bulkModeToggle', 'singleStudentArea', 'singleClassArea', 'singleClassSelect', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
     'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle',
-    'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'logError', 'logSuccess',
+    'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'confirmPanel', 'confirmSummary', 'confirmSaveBtn', 'confirmCancelBtn', 'logError', 'logSuccess',
     'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
     'statL1', 'statL2', 'statL3', 'statL4', 'statL5', 'statFlag', 'statRecommended', 'recentActivityList',
@@ -550,8 +682,14 @@ function wire() {
   $('studentSelect').addEventListener('change', populateCategories);
   $('entryTypeSelect').addEventListener('change', populateCategories);
   $('submitBtn').addEventListener('click', submitEntry);
+  $('confirmSaveBtn').addEventListener('click', confirmAndSave);
+  $('confirmCancelBtn').addEventListener('click', cancelConfirm);
   $('bulkModeToggle').addEventListener('change', toggleBulkMode);
   $('bulkClassSelect').addEventListener('change', populateBulkStudentList);
+  $('singleClassSelect').addEventListener('change', function () {
+    state.currentSingleClass = $('singleClassSelect').value;
+    populateStudentsForSingleClass();
+  });
 
   document.querySelectorAll('.tabBtn').forEach(function (btn) {
     btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-tab')); });

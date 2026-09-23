@@ -48,6 +48,10 @@
     <label class="check"><input type="checkbox" id="bulkModeToggle"> Log for multiple students at once</label>
 
     <div id="singleStudentArea">
+      <div id="singleClassArea" class="hidden">
+        <label for="singleClassSelect">Class</label>
+        <select id="singleClassSelect"></select>
+      </div>
       <label for="studentSelect">Student</label>
       <select id="studentSelect"><option value="">Loading students...</option></select>
     </div>
@@ -98,6 +102,13 @@
     </select>
 
     <button id="submitBtn" type="button">Save Entry</button>
+
+    <div id="confirmPanel" class="hidden" style="border:2px solid #c77b00;background:#fff6e6;border-radius:8px;padding:14px;margin-top:10px;">
+      <p id="confirmSummary" style="margin:0 0 10px 0;"></p>
+      <button id="confirmSaveBtn" type="button">Confirm &amp; Save</button>
+      <button id="confirmCancelBtn" type="button" class="linkBtn">Cancel</button>
+    </div>
+
     <p id="logError" class="error"></p>
     <p id="logSuccess" class="success"></p>
     </section>
