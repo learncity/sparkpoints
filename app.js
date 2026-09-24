@@ -253,7 +253,8 @@ function populateCategories() {
   const sel = $('categorySelect');
   sel.innerHTML = '';
 
-  $('notifyParentArea').classList.toggle('hidden', entryType !== 'Behavioural Points');
+  $('notifyParentArea').classList.toggle('hidden', entryType !== 'Achievement Points');
+  $('notifyParentRequiredNote').classList.toggle('hidden', entryType !== 'Behavioural Points');
 
   if (!section) { sel.innerHTML = '<option value="">Choose a student first</option>'; return; }
 
@@ -383,12 +384,12 @@ function prepareSingleConfirm() {
   }
 
   const student = currentStudent();
-  const willNotify = entryType === 'Behavioural Points' && notifyParent;
+  const willNotify = entryType === 'Behavioural Points' || notifyParent;
 
   // Frozen at this exact moment — this, and only this, is what gets saved.
   pendingEntry = {
     mode: 'single', studentId: studentId, category: category, note: note, entryType: entryType,
-    notifyParent: notifyParent, actionTaken: actionTaken, followUp: followUp,
+    notifyParent: willNotify, actionTaken: actionTaken, followUp: followUp,
     studentName: student ? student.name : '', studentClass: student ? student.className : ''
   };
 
@@ -447,7 +448,7 @@ function prepareBulkConfirm() {
     return;
   }
 
-  const willNotify = entryType === 'Behavioural Points' && notifyParent;
+  const willNotify = entryType === 'Behavioural Points' || notifyParent;
   const names = studentIds.map(function (id) {
     const s = state.students.find(function (x) { return x.id === id; });
     return s ? s.name : id;
@@ -457,7 +458,7 @@ function prepareBulkConfirm() {
   // Frozen at this exact moment — this, and only this, is what gets saved.
   pendingEntry = {
     mode: 'bulk', studentIds: studentIds, category: category, note: note, entryType: entryType,
-    notifyParent: notifyParent, actionTaken: actionTaken, followUp: followUp, names: names
+    notifyParent: willNotify, actionTaken: actionTaken, followUp: followUp, names: names
   };
 
   $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' + names.length +
@@ -687,7 +688,7 @@ function wire() {
   const needed = ['signInScreen', 'logScreen', 'signInForm', 'staffEmail', 'staffCode', 'rememberMeToggle', 'signInBtn', 'signInError',
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
     'bulkModeToggle', 'singleStudentArea', 'singleClassArea', 'singleClassSelect', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
-    'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle',
+    'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle', 'notifyParentRequiredNote',
     'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'confirmPanel', 'confirmSummary', 'confirmSaveBtn', 'confirmCancelBtn', 'logError', 'logSuccess',
     'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
