@@ -271,29 +271,47 @@ function loadAttendanceRoster() {
   const date = $('attendanceDateInput').value || Utilities_today();
   $('attendanceError').textContent = '';
   $('attendanceSuccess').textContent = '';
+  cancelAttendanceConfirm();
   if (!cls) { $('attendanceRosterList').innerHTML = '<p class="subtitle">No class available.</p>'; return; }
 
   $('attendanceRosterList').innerHTML = '<p class="subtitle">Loading...</p>';
   call('getAttendanceForClass', { className: cls, date: date }).then(function (r) {
     if (!r || !r.success) { $('attendanceError').textContent = (r && r.error) || 'Could not load attendance.'; return; }
     $('attendanceAlreadyTakenNote').classList.toggle('hidden', !r.alreadyTaken);
-    renderAttendanceRoster(r.roster);
+    renderAttendanceRoster(r.roster, r.alreadyTaken);
   }).catch(function () {
     $('attendanceError').textContent = 'Could not reach the server.';
   });
 }
 
-function renderAttendanceRoster(roster) {
+/* Checking a box marks that student PRESENT. A box left unchecked at save
+   time is recorded ABSENT — but "unchecked" covers two different things,
+   and the confirmation step (see prepareAttendanceConfirm) needs to tell
+   them apart: a box the teacher deliberately left unchecked (they marked
+   it, decided Absent) versus a box nobody ever touched (genuinely
+   forgotten). data-touched tracks that difference. For a day already
+   saved before (re-opening to correct it), every box reflects a real
+   prior decision, so all start "touched" — there's nothing forgotten
+   about a record that already exists. */
+function renderAttendanceRoster(roster, alreadyTaken) {
   const box = $('attendanceRosterList');
   if (!roster.length) { box.innerHTML = '<p class="subtitle">No students in this class.</p>'; return; }
   box.innerHTML = roster.map(function (s) {
-    const checked = s.status === 'Absent' ? ' checked' : '';
-    return '<label class="check"><input type="checkbox" class="attendanceAbsentCheck" data-student-id="' + escapeHtml(s.id) + '"' + checked + '> ' +
-      escapeHtml(s.name) + ' \u2014 <span class="subtitle">mark absent</span></label>';
+    const checked = alreadyTaken && s.status === 'Present' ? ' checked' : '';
+    const touched = alreadyTaken ? ' data-touched="true"' : ' data-touched="false"';
+    return '<label class="check"><input type="checkbox" class="attendancePresentCheck" data-student-id="' + escapeHtml(s.id) + '"' +
+      checked + touched + '> ' + escapeHtml(s.name) + ' \u2014 <span class="subtitle">mark present</span></label>';
   }).join('');
 }
 
-function saveAttendance() {
+function markAllAttendancePresent() {
+  document.querySelectorAll('.attendancePresentCheck').forEach(function (el) {
+    el.checked = true;
+    el.setAttribute('data-touched', 'true');
+  });
+}
+
+function prepareAttendanceConfirm() {
   const cls = state.currentAttendanceClass;
   const date = $('attendanceDateInput').value || Utilities_today();
   $('attendanceError').textContent = '';
@@ -301,24 +319,57 @@ function saveAttendance() {
   if (!cls) { $('attendanceError').textContent = 'No class selected.'; return; }
 
   const records = [];
-  document.querySelectorAll('.attendanceAbsentCheck').forEach(function (el) {
-    records.push({ studentId: el.getAttribute('data-student-id'), status: el.checked ? 'Absent' : 'Present' });
+  let presentCount = 0, absentExplicitCount = 0, notMarkedCount = 0;
+  document.querySelectorAll('.attendancePresentCheck').forEach(function (el) {
+    const present = el.checked;
+    const touched = el.getAttribute('data-touched') === 'true';
+    records.push({ studentId: el.getAttribute('data-student-id'), status: present ? 'Present' : 'Absent' });
+    if (present) presentCount++;
+    else if (touched) absentExplicitCount++;
+    else notMarkedCount++;
   });
   if (!records.length) { $('attendanceError').textContent = 'No students to mark.'; return; }
 
-  $('attendanceSaveBtn').disabled = true;
-  $('attendanceSaveBtn').textContent = 'Saving...';
-  call('submitAttendance', { className: cls, date: date, records: records }).then(function (r) {
-    $('attendanceSaveBtn').disabled = false;
-    $('attendanceSaveBtn').textContent = 'Save Attendance';
+  let summary = presentCount + ' present, ' + absentExplicitCount + ' absent';
+  if (notMarkedCount > 0) {
+    summary += '. <strong>' + notMarkedCount + ' not marked at all \u2014 ' +
+      (notMarkedCount === 1 ? 'this student' : 'these students') + ' will be recorded Absent.</strong> Check the list if that\u2019s not intended.';
+  } else {
+    summary += '.';
+  }
+
+  pendingAttendance = { className: cls, date: date, records: records };
+  $('attendanceConfirmSummary').innerHTML = summary;
+  $('attendanceSaveBtn').classList.add('hidden');
+  $('attendanceConfirmPanel').classList.remove('hidden');
+}
+
+function cancelAttendanceConfirm() {
+  $('attendanceConfirmPanel').classList.add('hidden');
+  $('attendanceSaveBtn').classList.remove('hidden');
+  pendingAttendance = null;
+}
+
+function confirmSaveAttendance() {
+  const entry = pendingAttendance;
+  if (!entry) return;
+
+  $('attendanceConfirmSaveBtn').disabled = true;
+  $('attendanceConfirmSaveBtn').textContent = 'Saving...';
+  call('submitAttendance', entry).then(function (r) {
+    $('attendanceConfirmSaveBtn').disabled = false;
+    $('attendanceConfirmSaveBtn').textContent = 'Confirm & Save';
+    $('attendanceConfirmPanel').classList.add('hidden');
+    $('attendanceSaveBtn').classList.remove('hidden');
+    pendingAttendance = null;
     if (!r || !r.success) { $('attendanceError').textContent = (r && r.error) || 'Could not save attendance.'; return; }
-    const absentCount = records.filter(function (rec) { return rec.status === 'Absent'; }).length;
-    $('attendanceSuccess').textContent = 'Saved — ' + records.length + ' student' + (records.length === 1 ? '' : 's') + ' marked (' +
+    const absentCount = entry.records.filter(function (rec) { return rec.status === 'Absent'; }).length;
+    $('attendanceSuccess').textContent = 'Saved — ' + entry.records.length + ' student' + (entry.records.length === 1 ? '' : 's') + ' marked (' +
       absentCount + ' absent).';
     $('attendanceAlreadyTakenNote').classList.remove('hidden');
   }).catch(function () {
-    $('attendanceSaveBtn').disabled = false;
-    $('attendanceSaveBtn').textContent = 'Save Attendance';
+    $('attendanceConfirmSaveBtn').disabled = false;
+    $('attendanceConfirmSaveBtn').textContent = 'Confirm & Save';
     $('attendanceError').textContent = 'Could not reach the server. Attendance was not saved — try again.';
   });
 }
@@ -576,6 +627,7 @@ function unlockForm() {
    a gap in the lock, a timing issue, anything. Confirming and saving must
    use the same frozen data, or the confirmation can't be trusted. */
 let pendingEntry = null;
+let pendingAttendance = null;
 
 function submitEntry() {
   if (state.bulkMode) { prepareBulkConfirm(); return; }
@@ -931,7 +983,8 @@ function wire() {
     'classTotal', 'classAch7d', 'classBeh7d', 'classMostCommon',
     'classApproachingList', 'classTopList', 'classFollowUpList',
     'attendanceTab', 'attendanceClassArea', 'attendanceClassSelect', 'attendanceDateInput',
-    'attendanceAlreadyTakenNote', 'attendanceError', 'attendanceRosterList', 'attendanceSaveBtn', 'attendanceSuccess',
+    'attendanceAlreadyTakenNote', 'attendanceError', 'attendanceMarkAllPresentBtn', 'attendanceRosterList', 'attendanceSaveBtn',
+    'attendanceConfirmPanel', 'attendanceConfirmSummary', 'attendanceConfirmSaveBtn', 'attendanceConfirmCancelBtn', 'attendanceSuccess',
     'incidentTab', 'incidentClassArea', 'incidentClassSelect', 'incidentStudentSelect', 'incidentTypeSelect',
     'incidentOtherStudentToggle', 'incidentOtherStudentArea', 'incidentOtherStudentSelect',
     'incidentDescriptionInput', 'incidentActionInput', 'incidentSubmitBtn', 'incidentError', 'incidentSuccess'];
@@ -961,7 +1014,17 @@ function wire() {
     loadAttendanceRoster();
   });
   $('attendanceDateInput').addEventListener('change', loadAttendanceRoster);
-  $('attendanceSaveBtn').addEventListener('click', saveAttendance);
+  $('attendanceMarkAllPresentBtn').addEventListener('click', markAllAttendancePresent);
+  $('attendanceSaveBtn').addEventListener('click', prepareAttendanceConfirm);
+  $('attendanceConfirmSaveBtn').addEventListener('click', confirmSaveAttendance);
+  $('attendanceConfirmCancelBtn').addEventListener('click', cancelAttendanceConfirm);
+  // Checkboxes are rendered dynamically per roster load, so this listens
+  // on the container rather than each box individually.
+  $('attendanceRosterList').addEventListener('change', function (e) {
+    if (e.target.classList.contains('attendancePresentCheck')) {
+      e.target.setAttribute('data-touched', 'true');
+    }
+  });
 
   $('incidentClassSelect').addEventListener('change', function () {
     state.currentIncidentClass = $('incidentClassSelect').value;

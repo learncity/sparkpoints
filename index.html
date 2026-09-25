@@ -132,9 +132,17 @@
       <p id="attendanceAlreadyTakenNote" class="subtitle hidden">Attendance has already been taken for this class and date — saving again will update it.</p>
       <p id="attendanceError" class="error"></p>
 
+      <button id="attendanceMarkAllPresentBtn" type="button" class="linkBtn">Mark All Present</button>
       <div id="attendanceRosterList" class="checklistBox"><p class="subtitle">Loading students...</p></div>
 
       <button id="attendanceSaveBtn" type="button">Save Attendance</button>
+
+      <div id="attendanceConfirmPanel" class="hidden" style="border:2px solid #c77b00;background:#fff6e6;border-radius:8px;padding:14px;margin-top:10px;">
+        <p id="attendanceConfirmSummary" style="margin:0 0 10px 0;"></p>
+        <button id="attendanceConfirmSaveBtn" type="button">Confirm &amp; Save</button>
+        <button id="attendanceConfirmCancelBtn" type="button" class="linkBtn">Cancel</button>
+      </div>
+
       <p id="attendanceSuccess" class="success"></p>
     </section>
 
