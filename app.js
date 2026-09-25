@@ -36,7 +36,8 @@ let state = {
   canLog: false, canAmendDelete: false,
   students: [], achievement: [], behavioural: [],
   lastRecent: [], currentDashStudentId: '',
-  bulkMode: false, currentSingleClass: ''
+  bulkMode: false, currentSingleClass: '',
+  currentAttendanceClass: '', currentIncidentClass: ''
 };
 
 /* ---------- server calls ---------- */
@@ -134,6 +135,9 @@ function enterPortal() {
     populateCategories();
     populateDashboardPickers();
     populateBulkClasses();
+    populateAttendanceClasses();
+    populateIncidentClasses();
+    populateIncidentOtherStudentSelect();
   }).catch(function () {
     fatal('Could not reach the server while loading the form.');
   });
@@ -222,6 +226,209 @@ function populateStudentsForSingleClass() {
   populateCategories();
 }
 
+/* ---------- attendance ---------- */
+
+function populateAttendanceClasses() {
+  const area = $('attendanceClassArea');
+  const sel = $('attendanceClassSelect');
+  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
+
+  if (!$('attendanceDateInput').value) {
+    $('attendanceDateInput').value = Utilities_today();
+  }
+
+  if (classes.length <= 1) {
+    area.classList.add('hidden');
+    state.currentAttendanceClass = classes[0] || '';
+    loadAttendanceRoster();
+    return;
+  }
+
+  area.classList.remove('hidden');
+  sel.innerHTML = '';
+  classes.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  const defaultClass = (state.homeClass && classes.indexOf(state.homeClass) !== -1) ? state.homeClass : classes[0];
+  sel.value = defaultClass;
+  state.currentAttendanceClass = defaultClass;
+  loadAttendanceRoster();
+}
+
+// No server clock call needed for a plain today's-date default — this
+// mirrors what the date input would show anyway, just pre-filled.
+function Utilities_today() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function loadAttendanceRoster() {
+  const cls = state.currentAttendanceClass;
+  const date = $('attendanceDateInput').value || Utilities_today();
+  $('attendanceError').textContent = '';
+  $('attendanceSuccess').textContent = '';
+  if (!cls) { $('attendanceRosterList').innerHTML = '<p class="subtitle">No class available.</p>'; return; }
+
+  $('attendanceRosterList').innerHTML = '<p class="subtitle">Loading...</p>';
+  call('getAttendanceForClass', { className: cls, date: date }).then(function (r) {
+    if (!r || !r.success) { $('attendanceError').textContent = (r && r.error) || 'Could not load attendance.'; return; }
+    $('attendanceAlreadyTakenNote').classList.toggle('hidden', !r.alreadyTaken);
+    renderAttendanceRoster(r.roster);
+  }).catch(function () {
+    $('attendanceError').textContent = 'Could not reach the server.';
+  });
+}
+
+function renderAttendanceRoster(roster) {
+  const box = $('attendanceRosterList');
+  if (!roster.length) { box.innerHTML = '<p class="subtitle">No students in this class.</p>'; return; }
+  box.innerHTML = roster.map(function (s) {
+    const checked = s.status === 'Absent' ? ' checked' : '';
+    return '<label class="check"><input type="checkbox" class="attendanceAbsentCheck" data-student-id="' + escapeHtml(s.id) + '"' + checked + '> ' +
+      escapeHtml(s.name) + ' \u2014 <span class="subtitle">mark absent</span></label>';
+  }).join('');
+}
+
+function saveAttendance() {
+  const cls = state.currentAttendanceClass;
+  const date = $('attendanceDateInput').value || Utilities_today();
+  $('attendanceError').textContent = '';
+  $('attendanceSuccess').textContent = '';
+  if (!cls) { $('attendanceError').textContent = 'No class selected.'; return; }
+
+  const records = [];
+  document.querySelectorAll('.attendanceAbsentCheck').forEach(function (el) {
+    records.push({ studentId: el.getAttribute('data-student-id'), status: el.checked ? 'Absent' : 'Present' });
+  });
+  if (!records.length) { $('attendanceError').textContent = 'No students to mark.'; return; }
+
+  $('attendanceSaveBtn').disabled = true;
+  $('attendanceSaveBtn').textContent = 'Saving...';
+  call('submitAttendance', { className: cls, date: date, records: records }).then(function (r) {
+    $('attendanceSaveBtn').disabled = false;
+    $('attendanceSaveBtn').textContent = 'Save Attendance';
+    if (!r || !r.success) { $('attendanceError').textContent = (r && r.error) || 'Could not save attendance.'; return; }
+    const absentCount = records.filter(function (rec) { return rec.status === 'Absent'; }).length;
+    $('attendanceSuccess').textContent = 'Saved — ' + records.length + ' student' + (records.length === 1 ? '' : 's') + ' marked (' +
+      absentCount + ' absent).';
+    $('attendanceAlreadyTakenNote').classList.remove('hidden');
+  }).catch(function () {
+    $('attendanceSaveBtn').disabled = false;
+    $('attendanceSaveBtn').textContent = 'Save Attendance';
+    $('attendanceError').textContent = 'Could not reach the server. Attendance was not saved — try again.';
+  });
+}
+
+/* ---------- incident reporting ----------
+   Same reasoning as the Log a Point student picker: defaulting to the
+   reporting teacher's Home Class, with an explicit switcher, applies the
+   same fix that closed the original wrong-student/wrong-parent issue to
+   this form too — it's the same underlying risk (picking the wrong
+   student from a merged multi-class list). The OTHER student involved
+   (where relevant) is deliberately NOT scoped this way, since that
+   student may genuinely be in a different class. */
+
+function populateIncidentClasses() {
+  const area = $('incidentClassArea');
+  const sel = $('incidentClassSelect');
+  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
+
+  if (classes.length <= 1) {
+    area.classList.add('hidden');
+    state.currentIncidentClass = classes[0] || '';
+    populateStudentsForIncidentClass();
+    return;
+  }
+
+  area.classList.remove('hidden');
+  sel.innerHTML = '';
+  classes.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  const defaultClass = (state.homeClass && classes.indexOf(state.homeClass) !== -1) ? state.homeClass : classes[0];
+  sel.value = defaultClass;
+  state.currentIncidentClass = defaultClass;
+  populateStudentsForIncidentClass();
+}
+
+function populateStudentsForIncidentClass() {
+  const sel = $('incidentStudentSelect');
+  sel.innerHTML = '';
+  const cls = state.currentIncidentClass;
+  const inClass = state.students.filter(function (s) { return s.className === cls; })
+    .sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+  if (!inClass.length) { sel.innerHTML = '<option value="">No students in this class</option>'; return; }
+  inClass.forEach(function (s) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name + ' — ' + s.className;
+    sel.appendChild(opt);
+  });
+}
+
+// The "other student involved" is deliberately the full list, not
+// class-scoped — see note above.
+function populateIncidentOtherStudentSelect() {
+  const sel = $('incidentOtherStudentSelect');
+  sel.innerHTML = '<option value="">Choose a student...</option>';
+  const sorted = [...state.students].sort(function (a, b) { return a.name.localeCompare(b.name); });
+  sorted.forEach(function (s) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name + ' — ' + s.className;
+    sel.appendChild(opt);
+  });
+}
+
+function toggleIncidentOtherStudentArea() {
+  $('incidentOtherStudentArea').classList.toggle('hidden', !$('incidentOtherStudentToggle').checked);
+  if (!$('incidentOtherStudentToggle').checked) $('incidentOtherStudentSelect').value = '';
+}
+
+function submitIncident() {
+  const studentId = $('incidentStudentSelect').value;
+  const incidentType = $('incidentTypeSelect').value;
+  const description = $('incidentDescriptionInput').value.trim();
+  const actionTaken = $('incidentActionInput').value.trim();
+  const otherStudentId = $('incidentOtherStudentToggle').checked ? $('incidentOtherStudentSelect').value : '';
+
+  $('incidentError').textContent = '';
+  $('incidentSuccess').textContent = '';
+
+  if (!studentId) { $('incidentError').textContent = 'Choose a student.'; return; }
+  if (!incidentType) { $('incidentError').textContent = 'Choose an incident type.'; return; }
+  if (!description) { $('incidentError').textContent = 'A description is required.'; return; }
+
+  $('incidentSubmitBtn').disabled = true;
+  $('incidentSubmitBtn').textContent = 'Submitting...';
+
+  call('submitIncidentReport', {
+    studentId: studentId, incidentType: incidentType, description: description,
+    actionTaken: actionTaken, otherStudentId: otherStudentId
+  }).then(function (r) {
+    $('incidentSubmitBtn').disabled = false;
+    $('incidentSubmitBtn').textContent = 'Submit Report';
+    if (!r || !r.success) { $('incidentError').textContent = (r && r.error) || 'Could not submit this report.'; return; }
+    $('incidentSuccess').textContent = 'Incident report submitted.';
+    $('incidentDescriptionInput').value = '';
+    $('incidentActionInput').value = '';
+    $('incidentTypeSelect').value = '';
+    $('incidentOtherStudentToggle').checked = false;
+    toggleIncidentOtherStudentArea();
+  }).catch(function () {
+    $('incidentSubmitBtn').disabled = false;
+    $('incidentSubmitBtn').textContent = 'Submit Report';
+    $('incidentError').textContent = 'Could not reach the server. This report was not submitted — try again.';
+  });
+}
+
 function currentStudent() {
   const id = $('studentSelect').value;
   return state.students.find(function (s) { return s.id === id; });
@@ -256,18 +463,29 @@ function populateCategories() {
   $('notifyParentArea').classList.toggle('hidden', entryType !== 'Achievement Points');
   $('notifyParentRequiredNote').classList.toggle('hidden', entryType !== 'Behavioural Points');
 
-  if (!section) { sel.innerHTML = '<option value="">Choose a student first</option>'; return; }
+  if (!section) { sel.innerHTML = '<option value="">Choose a student first</option>'; toggleOtherCategoryArea(); return; }
 
   const list = entryType === 'Achievement Points' ? state.achievement : state.behavioural;
   const options = list.filter(function (c) { return c.section === section; });
 
-  if (!options.length) { sel.innerHTML = '<option value="">No categories for this section</option>'; return; }
+  if (!options.length) { sel.innerHTML = '<option value="">No categories for this section</option>'; toggleOtherCategoryArea(); return; }
   options.forEach(function (c) {
     const opt = document.createElement('option');
     opt.value = c.category;
     opt.textContent = c.category;
     sel.appendChild(opt);
   });
+  toggleOtherCategoryArea();
+}
+
+/* "Others" is a real row in the library sheets (fixed +1/-1, Level 1 for
+   Behavioural) — the server treats it exactly like any other category.
+   The only thing that's different here is asking for a short free-text
+   description, which gets folded into the Note when saved. */
+function toggleOtherCategoryArea() {
+  const isOther = $('categorySelect').value === 'Others';
+  $('otherCategoryArea').classList.toggle('hidden', !isOther);
+  if (!isOther) $('otherDescriptionInput').value = '';
 }
 
 /* ---------- bulk mode ---------- */
@@ -338,7 +556,7 @@ function getBulkSelectedIds() {
    longer change what gets saved. */
 function confirmLockFields() {
   return ['singleClassSelect', 'studentSelect', 'bulkClassSelect', 'entryTypeSelect', 'categorySelect',
-    'notifyParentToggle', 'noteInput', 'actionSelect', 'followUpSelect'];
+    'notifyParentToggle', 'noteInput', 'otherDescriptionInput', 'actionSelect', 'followUpSelect'];
 }
 function lockFormForConfirm() {
   confirmLockFields().forEach(function (id) { const el = $(id); if (el) el.disabled = true; });
@@ -368,6 +586,7 @@ function prepareSingleConfirm() {
   const studentId = $('studentSelect').value;
   const category = $('categorySelect').value;
   const note = $('noteInput').value.trim();
+  const otherDescription = $('otherDescriptionInput').value.trim();
   const entryType = $('entryTypeSelect').value;
   const notifyParent = $('notifyParentToggle').checked;
   const actionTaken = $('actionSelect').value;
@@ -378,22 +597,27 @@ function prepareSingleConfirm() {
 
   if (!studentId) { $('logError').textContent = 'Choose a student.'; return; }
   if (!category) { $('logError').textContent = 'Choose a category.'; return; }
-  if (entryType === 'Behavioural Points' && note.length < 10) {
+  if (category === 'Others' && !otherDescription) {
+    $('logError').textContent = 'Describe what \u201cOthers\u201d refers to \u2014 this is required.';
+    return;
+  }
+  if (entryType === 'Behavioural Points' && category !== 'Others' && note.length < 10) {
     $('logError').textContent = 'Note must describe what happened — at least 10 characters for a Behavioural Points entry.';
     return;
   }
 
   const student = currentStudent();
   const willNotify = entryType === 'Behavioural Points' || notifyParent;
+  const displayCategory = category === 'Others' ? ('Others: ' + otherDescription) : category;
 
   // Frozen at this exact moment — this, and only this, is what gets saved.
   pendingEntry = {
-    mode: 'single', studentId: studentId, category: category, note: note, entryType: entryType,
-    notifyParent: willNotify, actionTaken: actionTaken, followUp: followUp,
+    mode: 'single', studentId: studentId, category: category, note: note, otherDescription: otherDescription,
+    entryType: entryType, notifyParent: willNotify, actionTaken: actionTaken, followUp: followUp,
     studentName: student ? student.name : '', studentClass: student ? student.className : ''
   };
 
-  $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' +
+  $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(displayCategory) + '</strong> for <strong>' +
     escapeHtml(pendingEntry.studentName) + '</strong> (' + escapeHtml(pendingEntry.studentClass) + ').' +
     (willNotify ? '<br><strong>The parent will be notified.</strong>' : '<br>The parent will not be notified for this entry.');
 
@@ -414,6 +638,7 @@ function doSingleSave() {
     entryType: entry.entryType,
     category: entry.category,
     note: entry.note,
+    otherDescription: entry.otherDescription,
     actionTaken: entry.actionTaken,
     followUp: entry.followUp,
     notifyParent: entry.notifyParent
@@ -423,6 +648,7 @@ function doSingleSave() {
     $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
       entry.studentName + '.' + (r.parentNotified ? ' Parent notified.' : '');
     $('noteInput').value = '';
+    $('otherDescriptionInput').value = '';
   }).catch(function () {
     endConfirm();
     $('logError').textContent = 'Could not reach the server. Your entry was not saved — try again.';
@@ -437,13 +663,18 @@ function prepareBulkConfirm() {
   const notifyParent = $('notifyParentToggle').checked;
   const actionTaken = $('actionSelect').value;
   const followUp = $('followUpSelect').value;
+  const otherDescription = $('otherDescriptionInput').value.trim();
 
   $('logError').textContent = '';
   $('logSuccess').textContent = '';
 
   if (!studentIds.length) { $('logError').textContent = 'Tick at least one student.'; return; }
   if (!category) { $('logError').textContent = 'Choose a category.'; return; }
-  if (entryType === 'Behavioural Points' && note.length < 10) {
+  if (category === 'Others' && !otherDescription) {
+    $('logError').textContent = 'Describe what \u201cOthers\u201d refers to \u2014 this is required.';
+    return;
+  }
+  if (entryType === 'Behavioural Points' && category !== 'Others' && note.length < 10) {
     $('logError').textContent = 'Note must describe what happened — at least 10 characters for a Behavioural Points entry.';
     return;
   }
@@ -454,14 +685,15 @@ function prepareBulkConfirm() {
     return s ? s.name : id;
   });
   const nameList = names.length <= 3 ? names.join(', ') : (names.slice(0, 3).join(', ') + ' and ' + (names.length - 3) + ' more');
+  const displayCategory = category === 'Others' ? ('Others: ' + otherDescription) : category;
 
   // Frozen at this exact moment — this, and only this, is what gets saved.
   pendingEntry = {
-    mode: 'bulk', studentIds: studentIds, category: category, note: note, entryType: entryType,
-    notifyParent: willNotify, actionTaken: actionTaken, followUp: followUp, names: names
+    mode: 'bulk', studentIds: studentIds, category: category, note: note, otherDescription: otherDescription,
+    entryType: entryType, notifyParent: willNotify, actionTaken: actionTaken, followUp: followUp, names: names
   };
 
-  $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(category) + '</strong> for <strong>' + names.length +
+  $('confirmSummary').innerHTML = 'Log <strong>' + escapeHtml(displayCategory) + '</strong> for <strong>' + names.length +
     ' student' + (names.length === 1 ? '' : 's') + '</strong>: ' + escapeHtml(nameList) + '.' +
     (willNotify ? '<br><strong>' + names.length + ' parent' + (names.length === 1 ? '' : 's') + ' will be notified.</strong>' : '<br>Parents will not be notified for this entry.');
 
@@ -482,6 +714,7 @@ function doBulkSave() {
     entryType: entry.entryType,
     category: entry.category,
     note: entry.note,
+    otherDescription: entry.otherDescription,
     actionTaken: entry.actionTaken,
     followUp: entry.followUp,
     notifyParent: entry.notifyParent
@@ -491,6 +724,7 @@ function doBulkSave() {
     $('logSuccess').textContent = 'Saved — ' + (r.pointsAwarded > 0 ? '+' : '') + r.pointsAwarded + ' points recorded for ' +
       r.count + ' student' + (r.count === 1 ? '' : 's') + '. ' + r.notified + ' parent' + (r.notified === 1 ? '' : 's') + ' notified.';
     $('noteInput').value = '';
+    $('otherDescriptionInput').value = '';
     document.querySelectorAll('.bulkStudentCheck:checked').forEach(function (el) { el.checked = false; });
   }).catch(function () {
     endConfirm();
@@ -689,13 +923,18 @@ function wire() {
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
     'bulkModeToggle', 'singleStudentArea', 'singleClassArea', 'singleClassSelect', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
     'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle', 'notifyParentRequiredNote',
-    'noteInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'confirmPanel', 'confirmSummary', 'confirmSaveBtn', 'confirmCancelBtn', 'logError', 'logSuccess',
+    'noteInput', 'otherCategoryArea', 'otherDescriptionInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'confirmPanel', 'confirmSummary', 'confirmSaveBtn', 'confirmCancelBtn', 'logError', 'logSuccess',
     'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
     'statL1', 'statL2', 'statL3', 'statL4', 'statL5', 'statFlag', 'statRecommended', 'recentActivityList',
     'dashClassSelect', 'classDashError', 'classDashContent',
     'classTotal', 'classAch7d', 'classBeh7d', 'classMostCommon',
-    'classApproachingList', 'classTopList', 'classFollowUpList'];
+    'classApproachingList', 'classTopList', 'classFollowUpList',
+    'attendanceTab', 'attendanceClassArea', 'attendanceClassSelect', 'attendanceDateInput',
+    'attendanceAlreadyTakenNote', 'attendanceError', 'attendanceRosterList', 'attendanceSaveBtn', 'attendanceSuccess',
+    'incidentTab', 'incidentClassArea', 'incidentClassSelect', 'incidentStudentSelect', 'incidentTypeSelect',
+    'incidentOtherStudentToggle', 'incidentOtherStudentArea', 'incidentOtherStudentSelect',
+    'incidentDescriptionInput', 'incidentActionInput', 'incidentSubmitBtn', 'incidentError', 'incidentSuccess'];
   const missing = needed.filter(function (id) { return !document.getElementById(id); });
   if (missing.length) { fatal('index.html is missing these elements: ' + missing.join(', ')); return; }
 
@@ -715,6 +954,21 @@ function wire() {
     state.currentSingleClass = $('singleClassSelect').value;
     populateStudentsForSingleClass();
   });
+  $('categorySelect').addEventListener('change', toggleOtherCategoryArea);
+
+  $('attendanceClassSelect').addEventListener('change', function () {
+    state.currentAttendanceClass = $('attendanceClassSelect').value;
+    loadAttendanceRoster();
+  });
+  $('attendanceDateInput').addEventListener('change', loadAttendanceRoster);
+  $('attendanceSaveBtn').addEventListener('click', saveAttendance);
+
+  $('incidentClassSelect').addEventListener('change', function () {
+    state.currentIncidentClass = $('incidentClassSelect').value;
+    populateStudentsForIncidentClass();
+  });
+  $('incidentOtherStudentToggle').addEventListener('change', toggleIncidentOtherStudentArea);
+  $('incidentSubmitBtn').addEventListener('click', submitIncident);
 
   document.querySelectorAll('.tabBtn').forEach(function (btn) {
     btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-tab')); });

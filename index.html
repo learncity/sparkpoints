@@ -37,6 +37,8 @@
 
     <nav class="tabBar">
       <button type="button" class="tabBtn activeTab" data-tab="logTab">Log a Point</button>
+      <button type="button" class="tabBtn" data-tab="attendanceTab">Attendance</button>
+      <button type="button" class="tabBtn" data-tab="incidentTab">Report Incident</button>
       <button type="button" class="tabBtn" data-tab="studentTab">Student Dashboard</button>
       <button type="button" class="tabBtn" data-tab="classTab">Class Dashboard</button>
     </nav>
@@ -72,6 +74,11 @@
 
     <label for="categorySelect">Category</label>
     <select id="categorySelect"><option value="">Choose Entry Type first</option></select>
+
+    <div id="otherCategoryArea" class="hidden">
+      <label for="otherDescriptionInput">What was it?</label>
+      <input type="text" id="otherDescriptionInput" placeholder="Briefly describe what this is for — required.">
+    </div>
 
     <div id="notifyParentArea" class="hidden">
       <label class="check"><input type="checkbox" id="notifyParentToggle"> Notify parent about this entry</label>
@@ -112,6 +119,59 @@
 
     <p id="logError" class="error"></p>
     <p id="logSuccess" class="success"></p>
+    </section>
+
+    <section id="attendanceTab" class="tabPanel hidden">
+      <div id="attendanceClassArea" class="hidden">
+        <label for="attendanceClassSelect">Class</label>
+        <select id="attendanceClassSelect"></select>
+      </div>
+      <label for="attendanceDateInput">Date</label>
+      <input type="date" id="attendanceDateInput">
+
+      <p id="attendanceAlreadyTakenNote" class="subtitle hidden">Attendance has already been taken for this class and date — saving again will update it.</p>
+      <p id="attendanceError" class="error"></p>
+
+      <div id="attendanceRosterList" class="checklistBox"><p class="subtitle">Loading students...</p></div>
+
+      <button id="attendanceSaveBtn" type="button">Save Attendance</button>
+      <p id="attendanceSuccess" class="success"></p>
+    </section>
+
+    <section id="incidentTab" class="tabPanel hidden">
+      <div id="incidentClassArea" class="hidden">
+        <label for="incidentClassSelect">Class</label>
+        <select id="incidentClassSelect"></select>
+      </div>
+      <label for="incidentStudentSelect">Student</label>
+      <select id="incidentStudentSelect"><option value="">Loading students...</option></select>
+
+      <label for="incidentTypeSelect">Incident Type</label>
+      <select id="incidentTypeSelect">
+        <option value="">Choose a type...</option>
+        <option>Injury</option>
+        <option>Illness</option>
+        <option>Bullying</option>
+        <option>Theft</option>
+        <option>Property Damage</option>
+        <option>Other</option>
+      </select>
+
+      <label class="check"><input type="checkbox" id="incidentOtherStudentToggle"> Another student was involved</label>
+      <div id="incidentOtherStudentArea" class="hidden">
+        <label for="incidentOtherStudentSelect">Other Student Involved</label>
+        <select id="incidentOtherStudentSelect"><option value="">Choose a student...</option></select>
+      </div>
+
+      <label for="incidentDescriptionInput">Description</label>
+      <textarea id="incidentDescriptionInput" rows="4" placeholder="What happened, when, and where."></textarea>
+
+      <label for="incidentActionInput">Action Taken</label>
+      <textarea id="incidentActionInput" rows="3" placeholder="e.g. First aid given, sent to sick bay, parent called, sent home."></textarea>
+
+      <button id="incidentSubmitBtn" type="button">Submit Report</button>
+      <p id="incidentError" class="error"></p>
+      <p id="incidentSuccess" class="success"></p>
     </section>
 
     <section id="studentTab" class="tabPanel hidden">
