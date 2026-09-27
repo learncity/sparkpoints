@@ -26,7 +26,13 @@ const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxahzgarriiZeHw-RCWr8P
 const STORE_EMAIL = 'LC_SPARK_EMAIL';
 const STORE_CODE = 'LC_SPARK_CODE';
 
-const ALL_CLASSES = ['Nursery 1', 'Nursery 2', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
+/* This list must match the actual Class values in the STUDENTS sheet
+   exactly -- taken directly from the final reconciled student list, not
+   assumed. Nursery and Primary (except Primary 6) now split into real
+   arms; Primary 3 has three (A/B/C), not two. Secondary has no arms. */
+const ALL_CLASSES = ['Nursery 1A', 'Nursery 1B', 'Nursery 2A', 'Nursery 2B',
+  'Primary 1A', 'Primary 1B', 'Primary 2A', 'Primary 2B', 'Primary 3A', 'Primary 3B', 'Primary 3C',
+  'Primary 4A', 'Primary 4B', 'Primary 5A', 'Primary 5B', 'Primary 6',
   'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3'];
 
 const $ = function (id) { return document.getElementById(id); };
