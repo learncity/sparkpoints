@@ -140,6 +140,8 @@ function enterPortal() {
     populateSingleClasses();
     populateCategories();
     populateDashboardPickers();
+    showSchoolDashboardToggle();
+    showUsageTabIfAllowed();
     populateBulkClasses();
     populateAttendanceClasses();
     populateIncidentClasses();
@@ -150,23 +152,48 @@ function enterPortal() {
 }
 
 function populateDashboardPickers() {
+  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
+  const area = $('dashClassFilterArea');
+  const filterSel = $('dashClassFilterSelect');
+
+  if (classes.length > 1) {
+    area.classList.remove('hidden');
+    filterSel.innerHTML = '<option value="">All classes</option>';
+    classes.forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      filterSel.appendChild(opt);
+    });
+  } else {
+    area.classList.add('hidden');
+  }
+  populateDashStudentSelect();
+
+  const classSel = $('dashClassSelect');
+  classSel.innerHTML = '<option value="">Choose a class...</option>';
+  classes.forEach(function (c) {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    classSel.appendChild(opt);
+  });
+}
+
+/* Picking a class first, then a student from just that class, replaces
+   scrolling one flat list of every student in scope — trivial for a
+   single-class teacher, but genuinely unusable for a whole-school role
+   with 300+ students in one dropdown. "All classes" keeps the full list
+   available for anyone who still wants it. */
+function populateDashStudentSelect() {
   const studentSel = $('dashStudentSelect');
+  const filterClass = $('dashClassFilterSelect') ? $('dashClassFilterSelect').value : '';
   studentSel.innerHTML = '<option value="">Choose a student...</option>';
-  const sorted = [...state.students].sort(function (a, b) { return a.name.localeCompare(b.name); });
+  const filtered = filterClass ? state.students.filter(function (s) { return s.className === filterClass; }) : state.students;
+  const sorted = [...filtered].sort(function (a, b) { return a.name.localeCompare(b.name); });
   sorted.forEach(function (s) {
     const opt = document.createElement('option');
     opt.value = s.id;
     opt.textContent = s.name + ' — ' + s.className;
     studentSel.appendChild(opt);
-  });
-
-  const classSel = $('dashClassSelect');
-  classSel.innerHTML = '<option value="">Choose a class...</option>';
-  const classes = state.assignedClasses.indexOf('ALL') !== -1 ? ALL_CLASSES : state.assignedClasses;
-  classes.forEach(function (c) {
-    const opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    classSel.appendChild(opt);
   });
 }
 
@@ -932,6 +959,8 @@ function renderClassDashboard(r) {
   $('classTotal').textContent = r.totalStudents;
   $('classAch7d').textContent = fmtPts(r.achievement7d);
   $('classBeh7d').textContent = fmtPts(r.behavioural7d);
+  $('classAttDays').textContent = r.attendanceDaysTaken7d + ' of last 7';
+  $('classIncidents').textContent = r.incidentCount7d;
   $('classMostCommon').textContent = r.mostCommonBehaviour;
 
   fillList('classApproachingList', r.approachingEscalation, function (s) {
@@ -947,6 +976,153 @@ function renderClassDashboard(r) {
   }, 'Nothing outstanding.');
 
   $('classDashContent').classList.remove('hidden');
+}
+
+/* ---------- whole-school dashboard (Head of School / Governor / Head of
+   IT / Safeguarding Team Lead only) ---------- */
+
+let schoolDashRows = [];
+
+function showSchoolDashboardToggle() {
+  const isAllScope = state.assignedClasses.indexOf('ALL') !== -1;
+  $('schoolDashToggleArea').classList.toggle('hidden', !isAllScope);
+}
+
+function loadSchoolDashboard() {
+  $('classDashError').textContent = '';
+  call('getSchoolDashboard', {}).then(function (r) {
+    if (!r || !r.success) { $('classDashError').textContent = (r && r.error) || 'Could not load the whole-school dashboard.'; return; }
+    schoolDashRows = r.rows;
+    renderSchoolDashboard(r);
+  }).catch(function () {
+    $('classDashError').textContent = 'Could not reach the server.';
+  });
+}
+
+function renderSchoolDashboard(r) {
+  $('schoolTotal').textContent = r.schoolTotals.totalStudents;
+  $('schoolAch7d').textContent = fmtPts(r.schoolTotals.achievement7d);
+  $('schoolBeh7d').textContent = fmtPts(r.schoolTotals.behavioural7d);
+  $('schoolIncidents').textContent = r.schoolTotals.incidentCount7d;
+
+  const rows = r.rows.map(function (row) {
+    return '<tr><td>' + escapeHtml(row.className) + '</td><td>' + row.totalStudents + '</td><td>' + fmtPts(row.achievement7d) +
+      '</td><td>' + fmtPts(row.behavioural7d) + '</td><td>' + row.attendanceDaysTaken7d + ' of last 7</td><td>' + row.incidentCount7d + '</td></tr>';
+  }).join('');
+  $('schoolClassTable').innerHTML =
+    '<table class="dataTable"><thead><tr><th>Class</th><th>Students</th><th>Achievement (7d)</th><th>Behavioural (7d)</th>' +
+    '<th>Attendance Taken</th><th>Incidents (7d)</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+  $('schoolDashContent').classList.remove('hidden');
+}
+
+function showSchoolView() {
+  $('dashClassSelect').value = '';
+  $('classDashContent').classList.add('hidden');
+  $('schoolDashContent').classList.remove('hidden');
+  document.querySelector('label[for="dashClassSelect"]').classList.add('hidden');
+  $('dashClassSelect').classList.add('hidden');
+  $('schoolDashBtn').textContent = 'View a single class instead';
+  loadSchoolDashboard();
+}
+
+function showClassPickerView() {
+  $('schoolDashContent').classList.add('hidden');
+  document.querySelector('label[for="dashClassSelect"]').classList.remove('hidden');
+  $('dashClassSelect').classList.remove('hidden');
+  $('schoolDashBtn').textContent = 'View whole school instead';
+}
+
+/* ---------- teacher performance (whole-school roles only) ----------
+   Same report the Admin Portal's Staff Usage tab shows, available from the
+   normal portal so Governor / Head of IT / Safeguarding Team Lead / Head of
+   School never need Admin Portal access just to see it. */
+
+const USAGE_VIEW_ROLES = ['Head of School', 'School Governor', 'Head of IT', 'Safeguarding Team Lead'];
+let usagePeriodType = 'weekly';
+let usageOffset = 0;
+let usageRows = [];
+let usageTop5 = [];
+let usageBottom5 = [];
+
+function showUsageTabIfAllowed() {
+  $('usageTabBtn').classList.toggle('hidden', USAGE_VIEW_ROLES.indexOf(state.role) === -1);
+}
+
+function setUsagePeriod(type) {
+  usagePeriodType = type;
+  usageOffset = 0;
+  loadUsage();
+}
+
+function loadUsage() {
+  $('usageError').textContent = '';
+  ['weekly', 'monthly', 'termly'].forEach(function (t) {
+    $('usage' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn').disabled = (t === usagePeriodType);
+  });
+  $('usagePrevBtn').disabled = usagePeriodType === 'termly';
+  $('usageNextBtn').disabled = usagePeriodType === 'termly' || usageOffset >= 0;
+
+  call('getStaffUsageReport', { periodType: usagePeriodType, offset: usageOffset }).then(function (r) {
+    if (!r || !r.success) { $('usageError').textContent = (r && r.error) || 'Could not load teacher performance.'; return; }
+    usageRows = r.rows;
+    usageTop5 = r.top5 || [];
+    usageBottom5 = r.bottom5 || [];
+    $('usagePeriodLabel').textContent = r.periodLabel;
+    $('usageSchoolDays').textContent = r.schoolDays + ' school day' + (r.schoolDays === 1 ? '' : 's') + ' in this period';
+    renderUsageTable();
+  }).catch(function () {
+    $('usageError').textContent = 'Could not reach the server.';
+  });
+}
+
+function renderUsageTable() {
+  if (!usageRows.length) { $('usageTableWrap').innerHTML = '<p class="subtitle">No staff to show for this period.</p>'; return; }
+  const rows = usageRows.map(function (r) {
+    let bg = '';
+    if (usageTop5.indexOf(r.name) !== -1) bg = ' style="background:#e6f4ea"';
+    else if (usageBottom5.indexOf(r.name) !== -1) bg = ' style="background:#fce8e6"';
+    return '<tr' + bg + '><td>' + r.rank + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.role) + '</td><td>' + r.entries +
+      '</td><td>' + r.achievement + '</td><td>' + r.behavioural + '</td><td>' + r.activeDays + '</td><td>' + r.studentsReached + ' / ' + r.assignedStudents +
+      '</td><td>' + r.consistencyPct + '%</td><td>' + r.coveragePct + '%</td><td>' + r.attendanceTakenPct + '%</td><td><strong>' + r.score + '</strong></td></tr>';
+  }).join('');
+  $('usageTableWrap').innerHTML =
+    '<div style="overflow-x:auto"><table class="dataTable"><thead><tr><th>#</th><th>Name</th><th>Role</th><th>Entries</th><th>Achiev.</th><th>Behav.</th>' +
+    '<th>Active Days</th><th>Covered / Class</th><th>Consistency</th><th>Coverage</th><th>Attendance</th><th>Score</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function downloadUsageCsv() {
+  if (!usageRows.length) return;
+  const head = ['Rank', 'Name', 'Role', 'Entries', 'Achievement', 'Behavioural', 'Active Days', 'Students Covered', 'Assigned Students',
+    'Consistency %', 'Coverage %', 'Attendance %', 'Score'];
+  const q = function (s) { return '"' + String(s).replace(/"/g, '""') + '"'; };
+  const lines = [head.join(',')];
+  usageRows.forEach(function (r) {
+    lines.push([r.rank, q(r.name), q(r.role), r.entries, r.achievement, r.behavioural, r.activeDays, r.studentsReached, r.assignedStudents,
+      r.consistencyPct, r.coveragePct, r.attendanceTakenPct, r.score].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'spark_points_teacher_performance_' + usagePeriodType + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+}
+
+function downloadSchoolDashboardCsv() {
+  if (!schoolDashRows.length) return;
+  const head = ['Class', 'Total Students', 'Achievement (7d)', 'Behavioural (7d)', 'Attendance Days Taken (last 7)', 'Incidents (7d)'];
+  const lines = [head.join(',')];
+  schoolDashRows.forEach(function (row) {
+    lines.push([
+      '"' + row.className.replace(/"/g, '""') + '"', row.totalStudents, row.achievement7d, row.behavioural7d,
+      row.attendanceDaysTaken7d, row.incidentCount7d
+    ].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'spark_points_school_dashboard_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
 }
 
 function fillList(id, items, renderFn, emptyText) {
@@ -977,17 +1153,29 @@ function escapeHtml(s) {
 /* ---------- wiring ---------- */
 
 function wire() {
+  // Defensive: if anything ever calls wire() more than once, every
+  // addEventListener call below would attach a second time, silently
+  // double-firing every handler in the app on a single click. Cheap to
+  // guard against outright rather than rely on wire() only ever being
+  // invoked once in practice.
+  if (window.__sparkPointsWired) return;
+  window.__sparkPointsWired = true;
+
   const needed = ['signInScreen', 'logScreen', 'signInForm', 'staffEmail', 'staffCode', 'rememberMeToggle', 'signInBtn', 'signInError',
     'staffNameDisplay', 'staffRoleDisplay', 'signOutBtn', 'currentTermDisplay',
     'bulkModeToggle', 'singleStudentArea', 'singleClassArea', 'singleClassSelect', 'studentSelect', 'bulkStudentArea', 'bulkClassSelect', 'bulkStudentList',
     'entryTypeSelect', 'categorySelect', 'notifyParentArea', 'notifyParentToggle', 'notifyParentRequiredNote',
     'noteInput', 'otherCategoryArea', 'otherDescriptionInput', 'actionSelect', 'followUpSelect', 'submitBtn', 'confirmPanel', 'confirmSummary', 'confirmSaveBtn', 'confirmCancelBtn', 'logError', 'logSuccess',
-    'dashStudentSelect', 'studentDashError', 'studentDashContent',
+    'dashClassFilterArea', 'dashClassFilterSelect', 'dashStudentSelect', 'studentDashError', 'studentDashContent',
     'statAchievement', 'statBehavioural', 'statNet', 'statTier', 'statSession',
     'statL1', 'statL2', 'statL3', 'statL4', 'statL5', 'statFlag', 'statRecommended', 'recentActivityList',
     'dashClassSelect', 'classDashError', 'classDashContent',
-    'classTotal', 'classAch7d', 'classBeh7d', 'classMostCommon',
+    'classTotal', 'classAch7d', 'classBeh7d', 'classAttDays', 'classIncidents', 'classMostCommon',
     'classApproachingList', 'classTopList', 'classFollowUpList',
+    'schoolDashToggleArea', 'schoolDashBtn', 'schoolDashContent', 'backToClassBtn',
+    'schoolTotal', 'schoolAch7d', 'schoolBeh7d', 'schoolIncidents', 'schoolDashDownloadBtn', 'schoolClassTable',
+    'usageTabBtn', 'usageTab', 'usageWeeklyBtn', 'usageMonthlyBtn', 'usageTermlyBtn', 'usagePrevBtn', 'usageNextBtn',
+    'usagePeriodLabel', 'usageSchoolDays', 'usageDownloadBtn', 'usageError', 'usageTableWrap',
     'attendanceTab', 'attendanceClassArea', 'attendanceClassSelect', 'attendanceDateInput',
     'attendanceAlreadyTakenNote', 'attendanceError', 'attendanceMarkAllPresentBtn', 'attendanceRosterList', 'attendanceSaveBtn',
     'attendanceConfirmPanel', 'attendanceConfirmSummary', 'attendanceConfirmSaveBtn', 'attendanceConfirmCancelBtn', 'attendanceSuccess',
@@ -1042,8 +1230,21 @@ function wire() {
   document.querySelectorAll('.tabBtn').forEach(function (btn) {
     btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-tab')); });
   });
+  $('dashClassFilterSelect').addEventListener('change', populateDashStudentSelect);
   $('dashStudentSelect').addEventListener('change', function () { loadStudentDashboard(this.value); });
   $('dashClassSelect').addEventListener('change', function () { loadClassDashboard(this.value); });
+  $('schoolDashBtn').addEventListener('click', function () {
+    if ($('schoolDashContent').classList.contains('hidden')) { showSchoolView(); } else { showClassPickerView(); }
+  });
+  $('backToClassBtn').addEventListener('click', showClassPickerView);
+  $('schoolDashDownloadBtn').addEventListener('click', downloadSchoolDashboardCsv);
+  $('usageTabBtn').addEventListener('click', loadUsage);
+  $('usageWeeklyBtn').addEventListener('click', function () { setUsagePeriod('weekly'); });
+  $('usageMonthlyBtn').addEventListener('click', function () { setUsagePeriod('monthly'); });
+  $('usageTermlyBtn').addEventListener('click', function () { setUsagePeriod('termly'); });
+  $('usagePrevBtn').addEventListener('click', function () { usageOffset -= 1; loadUsage(); });
+  $('usageNextBtn').addEventListener('click', function () { if (usageOffset < 0) { usageOffset += 1; loadUsage(); } });
+  $('usageDownloadBtn').addEventListener('click', downloadUsageCsv);
 
   /* A link from the enrolment email looks like ?email=...&code=... —
      prefill and sign in automatically if both are present, taking

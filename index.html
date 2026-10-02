@@ -41,6 +41,7 @@
       <button type="button" class="tabBtn" data-tab="incidentTab">Report Incident</button>
       <button type="button" class="tabBtn" data-tab="studentTab">Student Dashboard</button>
       <button type="button" class="tabBtn" data-tab="classTab">Class Dashboard</button>
+      <button type="button" class="tabBtn hidden" id="usageTabBtn" data-tab="usageTab">Teacher Performance</button>
     </nav>
 
     <section id="logTab" class="tabPanel">
@@ -183,6 +184,10 @@
     </section>
 
     <section id="studentTab" class="tabPanel hidden">
+      <div id="dashClassFilterArea" class="hidden">
+        <label for="dashClassFilterSelect">Class</label>
+        <select id="dashClassFilterSelect"></select>
+      </div>
       <label for="dashStudentSelect">Student</label>
       <select id="dashStudentSelect"><option value="">Choose a student...</option></select>
       <p id="studentDashError" class="error"></p>
@@ -213,6 +218,10 @@
     </section>
 
     <section id="classTab" class="tabPanel hidden">
+      <div id="schoolDashToggleArea" class="hidden">
+        <button id="schoolDashBtn" type="button" class="linkBtn">View whole school instead</button>
+      </div>
+
       <label for="dashClassSelect">Class</label>
       <select id="dashClassSelect"><option value="">Choose a class...</option></select>
       <p id="classDashError" class="error"></p>
@@ -222,6 +231,8 @@
           <div class="statCard"><span class="statLabel">Total Students</span><span id="classTotal" class="statValue"></span></div>
           <div class="statCard"><span class="statLabel">Achievement (7d)</span><span id="classAch7d" class="statValue good"></span></div>
           <div class="statCard"><span class="statLabel">Behavioural (7d)</span><span id="classBeh7d" class="statValue bad"></span></div>
+          <div class="statCard"><span class="statLabel">Attendance Taken (last 7d)</span><span id="classAttDays" class="statValue"></span></div>
+          <div class="statCard"><span class="statLabel">Incidents (7d)</span><span id="classIncidents" class="statValue"></span></div>
         </div>
 
         <p><strong>Most common behaviour (this term):</strong> <span id="classMostCommon"></span></p>
@@ -235,6 +246,38 @@
         <h3>Needing Follow-up (this term)</h3>
         <div id="classFollowUpList"></div>
       </div>
+
+      <div id="schoolDashContent" class="hidden">
+        <button id="backToClassBtn" type="button" class="linkBtn">Back to single class</button>
+        <div class="statGrid">
+          <div class="statCard"><span class="statLabel">Total Students</span><span id="schoolTotal" class="statValue"></span></div>
+          <div class="statCard"><span class="statLabel">Achievement (7d)</span><span id="schoolAch7d" class="statValue good"></span></div>
+          <div class="statCard"><span class="statLabel">Behavioural (7d)</span><span id="schoolBeh7d" class="statValue bad"></span></div>
+          <div class="statCard"><span class="statLabel">Incidents (7d)</span><span id="schoolIncidents" class="statValue"></span></div>
+        </div>
+
+        <h3>By Class</h3>
+        <button id="schoolDashDownloadBtn" type="button">Download CSV</button>
+        <div id="schoolClassTable"></div>
+      </div>
+    </section>
+
+    <section id="usageTab" class="tabPanel hidden">
+      <div>
+        <button type="button" id="usageWeeklyBtn" class="usagePeriodBtn">Weekly</button>
+        <button type="button" id="usageMonthlyBtn" class="usagePeriodBtn">Monthly</button>
+        <button type="button" id="usageTermlyBtn" class="usagePeriodBtn">Termly</button>
+      </div>
+      <div>
+        <button type="button" id="usagePrevBtn" class="linkBtn">&larr; Prev</button>
+        <strong id="usagePeriodLabel"></strong>
+        <button type="button" id="usageNextBtn" class="linkBtn">Next &rarr;</button>
+      </div>
+      <p class="subtitle" id="usageSchoolDays"></p>
+      <button type="button" id="usageDownloadBtn">Download CSV</button>
+      <p id="usageError" class="error"></p>
+      <div id="usageTableWrap"></div>
+      <p class="subtitle">Score = Consistency 50% + Coverage 40% + Attendance taken 10%. Green rows are the week's top 5; red rows the bottom 5.</p>
     </section>
   </div>
 
