@@ -246,6 +246,7 @@ function finRenderLedger() {
     (/^SSS/.test(s.className) ? '<label>Track<select id="finProfTrack"><option' + (s.track === 'Science' ? ' selected' : '') + '>Science</option><option' + (s.track === 'Arts & Commercial' ? ' selected' : '') + '>Arts &amp; Commercial</option></select></label>' : '') +
     '<label>Status<select id="finProfStatus"><option' + (s.status === 'Active' ? ' selected' : '') + '>Active</option><option' + (s.status === 'Withdrawn' ? ' selected' : '') + '>Withdrawn</option></select></label>' +
     '<label>Notes<input id="finProfNotes" type="text" maxlength="300" value="' + escapeHtml(r.notes) + '"></label>' +
+    '<label>Parent email(s)<input id="finProfEmail" type="text" maxlength="200" placeholder="up to 3, separated by commas" value="' + escapeHtml(r.parentEmail) + '" style="min-width:260px"></label>' +
     '<button type="button" data-fin="profile-save">Save profile</button></div>' +
     '<p class="subtitle">Fee column: ' + escapeHtml(s.variant || 'not set') + (r.profileSource ? ' — ' + escapeHtml(r.profileSource) : '') + '</p>';
 
@@ -322,7 +323,7 @@ function finChargeReview() {
 function finProfileSave() {
   var s = FIN.ledger.student;
   var track = $('finProfTrack') ? $('finProfTrack').value : s.track;
-  call('finUpdateStudent', { studentId: s.id, learnerType: $('finProfLearner').value, track: track, status: $('finProfStatus').value, notes: $('finProfNotes').value.trim() })
+  call('finUpdateStudent', { studentId: s.id, learnerType: $('finProfLearner').value, track: track, status: $('finProfStatus').value, notes: $('finProfNotes').value.trim(), parentEmail: $('finProfEmail').value.trim() })
     .then(function (r) { finDone(r, 'Profile saved. Fee column: ' + (r && r.variant) + '.', s.id); }).catch(finFail);
 }
 function finAskReason(label, yes, run) {
