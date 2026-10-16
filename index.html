@@ -42,6 +42,7 @@
       <button type="button" class="tabBtn" data-tab="studentTab">Student Dashboard</button>
       <button type="button" class="tabBtn" data-tab="classTab">Class Dashboard</button>
       <button type="button" class="tabBtn hidden" id="usageTabBtn" data-tab="usageTab">Teacher Performance</button>
+      <button type="button" class="tabBtn hidden" id="feesTabBtn" data-tab="feesTab">Fees</button>
     </nav>
 
     <section id="logTab" class="tabPanel">
@@ -279,8 +280,19 @@
       <div id="usageTableWrap"></div>
       <p class="subtitle">Score = Consistency 50% + Coverage 40% + Attendance taken 10%. Green rows are the week's top 5; red rows the bottom 5.</p>
     </section>
+
+    <section id="feesTab" class="tabPanel hidden"></section>
   </div>
 
+  <style>
+    .finTable { border-collapse: collapse; width: 100%; font-size: 14px; margin: 6px 0 12px; }
+    .finTable th, .finTable td { border-bottom: 1px solid #dde3ee; padding: 6px 8px; text-align: left; }
+    .finTable thead th { background: #004AAD; color: #fff; position: sticky; top: 0; }
+    .finForm { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 6px 0 14px; }
+    .finForm label { display: flex; flex-direction: column; font-size: 13px; gap: 3px; }
+    #feesTab details { border: 1px solid #dde3ee; border-radius: 6px; padding: 6px 10px; margin: 6px 0; }
+  </style>
   <script src="app.js"></script>
+  <script src="fees.js"></script>
 </body>
 </html>

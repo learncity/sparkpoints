@@ -122,6 +122,13 @@ function enterPortal() {
   $('staffNameDisplay').textContent = state.fullName;
   $('staffRoleDisplay').textContent = state.role;
 
+  /* The Bursar works in Fees only: no class access, nothing to log. */
+  if (state.role === 'Bursar') {
+    document.querySelectorAll('.tabBtn').forEach(function (b) { if (b.getAttribute('data-tab') !== 'feesTab') b.classList.add('hidden'); });
+    switchTab('feesTab');
+    return;
+  }
+
   if (!state.canLog) {
     $('logError').textContent = 'Your account can view records but is not set up to log new entries. Contact Head of IT if this seems wrong.';
     $('submitBtn').disabled = true;
@@ -142,6 +149,7 @@ function enterPortal() {
     populateDashboardPickers();
     showSchoolDashboardToggle();
     showUsageTabIfAllowed();
+    showFeesTabIfAllowed();
     populateBulkClasses();
     populateAttendanceClasses();
     populateIncidentClasses();
@@ -197,11 +205,22 @@ function populateDashStudentSelect() {
   });
 }
 
+/* Head of IT, Governors and the Head of School can look at fee records (never edit). */
+const FEES_VIEW_ROLES = ['Head of IT', 'School Governor', 'Head of School'];
+function showFeesTabIfAllowed() {
+  $('feesTabBtn').classList.toggle('hidden', FEES_VIEW_ROLES.indexOf(state.role) === -1);
+}
+
 function switchTab(tabId) {
   document.querySelectorAll('.tabPanel').forEach(function (p) { p.classList.add('hidden'); });
   document.querySelectorAll('.tabBtn').forEach(function (b) { b.classList.remove('activeTab'); });
   $(tabId).classList.remove('hidden');
   document.querySelector('.tabBtn[data-tab="' + tabId + '"]').classList.add('activeTab');
+  /* Fees loads only when someone opens it, so other staff logins make no fee calls. */
+  if (tabId === 'feesTab' && !window.__feesStarted && typeof initFeesTab === 'function') {
+    window.__feesStarted = true;
+    initFeesTab();
+  }
 }
 
 /* Single-entry mode used to show every student across every one of a
@@ -1174,7 +1193,7 @@ function wire() {
     'classApproachingList', 'classTopList', 'classFollowUpList',
     'schoolDashToggleArea', 'schoolDashBtn', 'schoolDashContent', 'backToClassBtn',
     'schoolTotal', 'schoolAch7d', 'schoolBeh7d', 'schoolIncidents', 'schoolDashDownloadBtn', 'schoolClassTable',
-    'usageTabBtn', 'usageTab', 'usageWeeklyBtn', 'usageMonthlyBtn', 'usageTermlyBtn', 'usagePrevBtn', 'usageNextBtn',
+    'usageTabBtn', 'usageTab', 'feesTabBtn', 'feesTab', 'usageWeeklyBtn', 'usageMonthlyBtn', 'usageTermlyBtn', 'usagePrevBtn', 'usageNextBtn',
     'usagePeriodLabel', 'usageSchoolDays', 'usageDownloadBtn', 'usageError', 'usageTableWrap',
     'attendanceTab', 'attendanceClassArea', 'attendanceClassSelect', 'attendanceDateInput',
     'attendanceAlreadyTakenNote', 'attendanceError', 'attendanceMarkAllPresentBtn', 'attendanceRosterList', 'attendanceSaveBtn',
