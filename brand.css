@@ -1,0 +1,29 @@
+/* Learn City brand layer. Loaded AFTER style.css, so it only adds colour, crests and type;
+   remove the <link> to brand.css in index.html to go back to the plain look. */
+:root { --lc-navy:#004AAD; --lc-amber:#F8A74B; --lc-ink:#1f2937; --lc-muted:#5b6577; --lc-line:#dfe5f0; }
+body { font-family:'Times New Roman',Times,serif; color:var(--lc-ink); }
+h1,h2,h3 { color:var(--lc-navy); font-family:'Times New Roman',Times,serif; }
+button, input, select, textarea { font-family:inherit; }
+a { color:var(--lc-navy); }
+
+/* sign-in */
+.brandCrests { display:flex; justify-content:center; align-items:center; gap:18px; margin:0 0 6px; }
+.brandCrests img { height:92px; width:auto; background:#fff; }
+#signInScreen h1 { text-align:center; margin-bottom:2px; }
+#signInScreen .subtitle { text-align:center; }
+#signInScreen h1::after { content:""; display:block; width:64px; height:3px; background:var(--lc-amber); margin:8px auto 4px; border-radius:2px; }
+#signInBtn { background:var(--lc-navy); color:#fff; border:1px solid var(--lc-navy); }
+#signInBtn:hover { background:#003a8a; }
+input:focus, select:focus, textarea:focus { outline:2px solid var(--lc-amber); outline-offset:1px; border-color:var(--lc-navy); }
+
+/* signed-in header */
+.topBar { background:#fff; border-bottom:3px solid var(--lc-navy); box-shadow:0 3px 0 -0px var(--lc-amber), 0 3px 0 0 var(--lc-amber); }
+.topBar .topCrest { display:flex; align-items:center; gap:10px; }
+.topBar .topCrest img { height:44px; width:auto; background:#fff; }
+.topBar strong { color:var(--lc-navy); }
+
+/* tabs */
+.tabBar { border-bottom:1px solid var(--lc-line); }
+.tabBtn { font-family:inherit; }
+.tabBtn.activeTab { background:var(--lc-navy); color:#fff; border-color:var(--lc-navy); box-shadow:inset 0 -3px 0 var(--lc-amber); }
+th { color:var(--lc-navy); }
