@@ -1,0 +1,156 @@
+/* Learn City Spark Points — "Focus Modern" skin (Theme 2 style guide).
+   One self-contained stylesheet: replaces style.css AND brand.css.
+   Palette from the guide:
+     Royal Navy #1E293B · Soft Indigo #6366F1 · Mint #10B981 · Rose #F43F5E
+     Canvas #F1F5F9 · Surface #FFFFFF · Text #0F172A · Border #E2E8F0
+   Two deliberate darker shades, because the guide's own colours fail 4.5:1 as TEXT/FILL on white:
+     --indigo-600 #4F46E5 for filled buttons (white text), --mint-700 / --rose-700 for coloured text. */
+
+:root {
+  --navy:#1E293B; --navy-2:#334155;
+  --indigo:#6366F1; --indigo-600:#4F46E5; --indigo-700:#4338CA; --indigo-50:#EEF2FF; --indigo-200:#C7D2FE;
+  --mint:#10B981; --mint-700:#047857; --mint-50:#ECFDF5;
+  --rose:#F43F5E; --rose-700:#BE123C; --rose-50:#FFF1F2;
+  --canvas:#F1F5F9; --surface:#FFFFFF; --ink:#0F172A; --muted:#475569; --line:#E2E8F0; --line-2:#CBD5E1;
+  --radius:12px;
+  --font:'Inter','Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+}
+
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body { margin:0; background:var(--canvas); color:var(--ink); font-family:var(--font); font-size:16px; line-height:1.5; }
+.hidden { display:none !important; }
+
+h1, h2, h3 { color:var(--navy); font-family:var(--font); line-height:1.25; margin:0 0 .5em; }
+h1 { font-size:30px; font-weight:800; letter-spacing:-.01em; }
+h2 { font-size:23px; font-weight:700; }
+h3 { font-size:19px; font-weight:700; margin-top:1.4em; }
+p { margin:.4em 0 .8em; }
+a { color:var(--indigo-700); }
+em { color:var(--muted); }
+
+.subtitle { color:var(--muted); font-size:14px; margin:.2em 0 .8em; }
+
+/* ---------- sign-in ---------- */
+#signInScreen { max-width:420px; margin:0 auto; padding:32px 16px 48px; }
+#signInScreen > h1, #signInScreen > .subtitle { text-align:center; }
+.brandCrests { display:flex; justify-content:center; align-items:center; gap:14px; margin:0 0 18px; }
+.brandCrests img { height:84px; width:auto; background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:6px; }
+#signInScreen h1 { margin-bottom:2px; }
+#signInScreen h1::after { content:""; display:block; width:56px; height:4px; background:var(--indigo); margin:10px auto 6px; border-radius:2px; }
+#signInForm { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px; margin-top:14px; }
+
+/* ---------- signed-in shell ---------- */
+#logScreen { max-width:980px; margin:0 auto; padding:0 0 48px; }
+.topBar { display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--navy); color:#fff; padding:12px 16px; }
+.topBar .topCrest { display:flex; align-items:center; gap:10px; min-width:0; }
+.topBar .topCrest img { height:48px; width:auto; background:#fff; border-radius:10px; padding:4px; flex:none; }
+.topBar .topCrest > div { min-width:0; display:flex; flex-direction:column; margin-left:4px; }
+.topBar strong { color:#fff; font-size:16px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topBar .subtitle { color:#CBD5E1; margin:0; font-size:14px; }
+.topBar .linkBtn { background:transparent; color:#fff; border:1px solid #64748B; flex:none; }
+.topBar .linkBtn:hover { background:var(--navy-2); border-color:#94A3B8; }
+
+.tabBar { display:flex; gap:2px; background:var(--surface); border-bottom:1px solid var(--line); padding:0 8px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+.tabBtn { appearance:none; background:transparent; border:0; border-bottom:3px solid transparent; border-radius:0; color:var(--muted);
+  font:600 15px/1 var(--font); min-height:48px; padding:0 14px; white-space:nowrap; cursor:pointer; }
+.tabBtn:hover { color:var(--navy); background:var(--canvas); }
+.tabBtn.activeTab { color:var(--indigo-700); border-bottom-color:var(--indigo); background:var(--indigo-50); }
+
+.tabPanel { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin:16px 12px 0; padding:20px; }
+
+/* ---------- forms ---------- */
+label { display:block; font-size:14px; font-weight:600; color:var(--navy); margin:14px 0 6px; }
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=search], input[type=number], select, textarea {
+  width:100%; min-height:44px; padding:10px 12px; font:400 16px/1.4 var(--font); color:var(--ink);
+  background:#fff; border:1px solid var(--line-2); border-radius:10px; }
+textarea { resize:vertical; }
+input:focus, select:focus, textarea:focus, button:focus-visible, .tabBtn:focus-visible, a:focus-visible {
+  outline:3px solid var(--indigo); outline-offset:2px; border-color:var(--indigo); }
+label.check { display:flex; align-items:center; gap:10px; min-height:44px; font-weight:500; color:var(--ink); margin:8px 0; cursor:pointer; }
+input[type=checkbox] { width:22px; height:22px; accent-color:var(--indigo-600); flex:none; margin:0; }
+
+/* buttons: primary (indigo, 44px+, 16px bold) */
+button { font-family:var(--font); }
+button:not(.tabBtn):not(.linkBtn):not(.smallBtn):not(.usagePeriodBtn):not(.finSubBtn) {
+  appearance:none; display:inline-block; min-height:44px; padding:0 20px; margin:12px 8px 4px 0;
+  background:var(--indigo-600); color:#fff; border:1px solid var(--indigo-600); border-radius:10px;
+  font-size:16px; font-weight:700; cursor:pointer; }
+button:not(.tabBtn):not(.linkBtn):not(.smallBtn):not(.usagePeriodBtn):not(.finSubBtn):hover { background:var(--indigo-700); border-color:var(--indigo-700); }
+#signInBtn { width:100%; margin:18px 0 0; }
+button:disabled { opacity:.55; cursor:not-allowed; }
+
+/* secondary */
+.linkBtn, .usagePeriodBtn, .finSubBtn { appearance:none; min-height:44px; padding:0 16px; background:#fff; color:var(--indigo-700);
+  border:1px solid var(--indigo-200); border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; margin:6px 6px 6px 0; }
+.linkBtn:hover, .usagePeriodBtn:hover, .finSubBtn:hover { background:var(--indigo-50); border-color:var(--indigo); }
+.usagePeriodBtn:disabled { background:var(--indigo-600); color:#fff; border-color:var(--indigo-600); opacity:1; cursor:default; }
+.usagePeriodBtn:disabled::before { content:"\2713\00a0"; }
+.smallBtn { appearance:none; min-height:36px; padding:0 12px; background:#fff; color:var(--navy); border:1px solid var(--line-2);
+  border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+.smallBtn:hover { background:var(--canvas); }
+.smallBtn.danger { color:var(--rose-700); border-color:#FDA4AF; }
+.smallBtn.danger:hover { background:var(--rose-50); }
+
+/* status messages: colour + icon/word, never colour alone */
+.error, .success { margin:.6em 0; font-weight:600; }
+.error { color:var(--rose-700); }
+.success { color:var(--mint-700); }
+.error:not(:empty)::before { content:"\26A0\00a0Problem: "; }
+.success:not(:empty)::before { content:"\2713\00a0Done: "; }
+
+/* confirm panels */
+.confirmPanel { background:var(--indigo-50); border:1px solid var(--indigo-200); border-left:4px solid var(--indigo); border-radius:10px; padding:14px; margin-top:12px; }
+.confirmPanel p { margin:0 0 6px; }
+
+.checklistBox { max-height:300px; overflow:auto; background:#fff; border:1px solid var(--line-2); border-radius:10px; padding:4px 12px; }
+.checklistBox label.check { margin:0; border-bottom:1px solid var(--line); }
+.checklistBox label.check:last-child { border-bottom:0; }
+
+/* ---------- stats ---------- */
+.statGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:14px 0; }
+.statCard { background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:4px; }
+.statLabel { font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+.statValue { font-size:28px; font-weight:800; color:var(--navy); line-height:1.15; }
+.statValue.good { color:var(--mint-700); }
+.statValue.bad { color:var(--rose-700); }
+.statCard.small { padding:10px 12px; }
+.statCard.small .statValue { font-size:22px; }
+
+/* ---------- activity list ---------- */
+#recentActivityList, #classApproachingList, #classTopList, #classFollowUpList { display:flex; flex-direction:column; gap:8px; }
+.activityRow { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+.entryActions { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+.deletedBadge { display:inline-block; font-size:13px; font-weight:700; letter-spacing:.04em; color:var(--rose-700); background:var(--rose-50); border:1px solid #FDA4AF; border-radius:999px; padding:1px 10px; }
+
+/* ---------- tables ---------- */
+table { border-collapse:collapse; width:100%; font-size:14px; }
+.dataTable, .finTable { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; margin:6px 0 12px; }
+th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+thead th, th { background:var(--navy); color:#fff; font-size:13px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; border-bottom:0; }
+.finTable thead th { position:sticky; top:0; }
+tbody tr:hover { background:#F8FAFC; }
+tr.rowTop td, tr.rowTop { background:var(--mint-50); }
+tr.rowBottom td, tr.rowBottom { background:var(--rose-50); }
+.rowBadge { display:inline-block; margin-left:8px; font-size:12px; font-weight:700; letter-spacing:.04em; border-radius:999px; padding:1px 8px; }
+.rowTop .rowBadge { color:var(--mint-700); background:#fff; border:1px solid #6EE7B7; }
+.rowBottom .rowBadge { color:var(--rose-700); background:#fff; border:1px solid #FDA4AF; }
+
+/* ---------- fees ---------- */
+.finForm { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin:6px 0 14px; }
+.finForm label { display:flex; flex-direction:column; font-size:13px; gap:4px; margin:0; }
+#feesTab details { background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin:8px 0; }
+#feesTab summary { cursor:pointer; font-weight:600; color:var(--navy); min-height:32px; }
+.finSubBtn.on, .finSubBtn[aria-current=true] { background:var(--indigo-600); color:#fff; border-color:var(--indigo-600); }
+
+/* ---------- phones ---------- */
+@media (max-width:640px) {
+  h1 { font-size:26px; }
+  .topBar { padding:10px 12px; }
+  .topBar .topCrest img { height:40px; }
+  .tabPanel { margin:12px 8px 0; padding:14px; }
+  .statGrid { grid-template-columns:repeat(2,1fr); }
+  .statValue { font-size:24px; }
+  th, td { padding:8px; }
+}
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }

@@ -1098,10 +1098,10 @@ function loadUsage() {
 function renderUsageTable() {
   if (!usageRows.length) { $('usageTableWrap').innerHTML = '<p class="subtitle">No staff to show for this period.</p>'; return; }
   const rows = usageRows.map(function (r) {
-    let bg = '';
-    if (usageTop5.indexOf(r.name) !== -1) bg = ' style="background:#e6f4ea"';
-    else if (usageBottom5.indexOf(r.name) !== -1) bg = ' style="background:#fce8e6"';
-    return '<tr' + bg + '><td>' + r.rank + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.role) + '</td><td>' + r.entries +
+    let bg = '', badge = '';
+    if (usageTop5.indexOf(r.name) !== -1) { bg = ' class="rowTop"'; badge = ' <span class="rowBadge">TOP 5</span>'; }
+    else if (usageBottom5.indexOf(r.name) !== -1) { bg = ' class="rowBottom"'; badge = ' <span class="rowBadge">BOTTOM 5</span>'; }
+    return '<tr' + bg + '><td>' + r.rank + '</td><td>' + escapeHtml(r.name) + badge + '</td><td>' + escapeHtml(r.role) + '</td><td>' + r.entries +
       '</td><td>' + r.achievement + '</td><td>' + r.behavioural + '</td><td>' + r.activeDays + '</td><td>' + r.studentsReached + ' / ' + r.assignedStudents +
       '</td><td>' + r.consistencyPct + '%</td><td>' + r.coveragePct + '%</td><td>' + r.attendanceTakenPct + '%</td><td><strong>' + r.score + '</strong></td></tr>';
   }).join('');

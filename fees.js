@@ -60,7 +60,7 @@ function finBuildShell() {
   $('feesTab').innerHTML =
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px">' +
     '<strong id="finTermLabel">Fees</strong>' +
-    '<span style="padding:2px 10px;border-radius:12px;font-size:13px;' + (FIN.canEdit ? 'background:#e6f4ea;color:#1b5e20' : 'background:#fff3e0;color:#8a4b00') + '">' +
+    '<span style="padding:2px 10px;border-radius:12px;font-size:13px;' + (FIN.canEdit ? 'background:#ECFDF5;color:#047857;border:1px solid #6EE7B7' : 'background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE') + '">' +
     (FIN.canEdit ? 'Bursar — can edit' : 'View only') + '</span></div>' +
     '<div id="finSubBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' +
     subs.map(function (s) { return '<button type="button" class="finSubBtn" data-fin-sub="' + s[0] + '">' + s[1] + '</button>'; }).join('') + '</div>' +
@@ -70,10 +70,7 @@ function finBuildShell() {
 function finMarkSub() {
   document.querySelectorAll('.finSubBtn').forEach(function (b) {
     var on = b.getAttribute('data-fin-sub') === FIN.sub;
-    b.style.fontWeight = on ? 'bold' : 'normal';
-    b.style.background = on ? '#004AAD' : '#fff';
-    b.style.color = on ? '#fff' : '#004AAD';
-    b.style.border = '1px solid #004AAD'; b.style.borderRadius = '6px'; b.style.padding = '6px 12px';
+    b.classList.toggle('on', on); b.setAttribute('aria-current', on ? 'true' : 'false');
   });
 }
 function finShowSub(name) {
@@ -175,8 +172,8 @@ function finRenderStudentRows() {
   var tot = list.reduce(function (a, s) { return a + s.balance; }, 0);
   var rows = list.map(function (s) {
     return '<tr data-fin-student="' + escapeHtml(s.id) + '" style="cursor:pointer"><td>' + escapeHtml(s.name) + (s.status === 'Withdrawn' ? ' <em>(withdrawn)</em>' : '') +
-      '</td><td>' + escapeHtml(s.className) + '</td><td>' + finMoney(s.termBalance) + '</td><td><strong style="color:' + (s.balance > 0 ? '#b00020' : '#1b7a3a') + '">' + finMoney(s.balance) + '</strong></td>' +
-      '<td>' + (s.hasEmail ? '' : '<span title="No parent email on file" style="color:#8a4b00">no email</span>') + '</td></tr>';
+      '</td><td>' + escapeHtml(s.className) + '</td><td>' + finMoney(s.termBalance) + '</td><td><strong style="color:' + (s.balance > 0 ? '#BE123C' : '#047857') + '">' + finMoney(s.balance) + '</strong></td>' +
+      '<td>' + (s.hasEmail ? '' : '<span title="No parent email on file" style="color:#4338CA">no email</span>') + '</td></tr>';
   }).join('') || '<tr><td colspan="5" class="subtitle">No students match.</td></tr>';
   finSet('finStudentList', '<p class="subtitle">' + list.length + ' student' + (list.length === 1 ? '' : 's') + ' — total outstanding ' + finMoney(tot) + '</p>' +
     '<div style="overflow-x:auto"><table class="finTable"><thead><tr><th>Student</th><th>Class</th><th>This term</th><th>Balance, all terms</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>');
@@ -254,7 +251,7 @@ function finRenderLedger() {
     '<button type="button" class="linkBtn" data-fin="back">&larr; Back to students</button>' +
     '<h3 style="margin-bottom:2px">' + escapeHtml(s.name) + '</h3>' +
     '<p class="subtitle">' + escapeHtml(s.id) + ' — ' + escapeHtml(s.className) + (s.status === 'Withdrawn' ? ' — withdrawn' : '') +
-    (E ? ' — parent email: ' + (r.parentEmail ? escapeHtml(r.parentEmail) : '<strong style="color:#8a4b00">none on file (receipts cannot be emailed)</strong>') : '') + '</p>' +
+    (E ? ' — parent email: ' + (r.parentEmail ? escapeHtml(r.parentEmail) : '<strong style="color:#4338CA">none on file (receipts cannot be emailed)</strong>') : '') + '</p>' +
     '<div class="statGrid"><div class="statCard"><span class="statLabel">Charged</span><span class="statValue">' + finMoney(s.charged) + '</span></div>' +
     '<div class="statCard"><span class="statLabel">Discounts</span><span class="statValue">' + finMoney(s.discounts) + '</span></div>' +
     '<div class="statCard"><span class="statLabel">Paid</span><span class="statValue good">' + finMoney(s.paid) + '</span></div>' +
@@ -419,7 +416,7 @@ function finInvPreview() {
     var s = r.summary;
     finSet('finInvOut', '<p><strong>' + s.students + '</strong> students would be invoiced <strong>' + finMoney(s.total) + '</strong> in ' + s.lines + ' lines for ' + escapeHtml(v[0] + ' ' + v[1]) + '. ' +
       s.alreadyInvoiced + ' already invoiced and skipped; ' + s.noVariant + ' have no fee profile.' +
-      (s.noSchedule.length ? '<br><strong style="color:#b00020">' + s.noSchedule.length + ' have a fee column with no schedule for this term and will not be invoiced.</strong>' : '') + '</p>' +
+      (s.noSchedule.length ? '<br><strong style="color:#BE123C">' + s.noSchedule.length + ' have a fee column with no schedule for this term and will not be invoiced.</strong>' : '') + '</p>' +
       (s.students > 0 ? '<button type="button" data-fin="inv-generate">Generate these invoices</button>' : ''));
   }).catch(function () { finSet('finInvOut', ''); finMsg('Could not reach the server.'); });
 }
