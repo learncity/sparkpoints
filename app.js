@@ -205,8 +205,8 @@ function populateDashStudentSelect() {
   });
 }
 
-/* Head of IT, Governors and the Head of School can look at fee records (never edit). */
-const FEES_VIEW_ROLES = ['Head of IT', 'School Governor', 'Head of School'];
+/* Head of IT, Governors and the Head of School can look at fee records (never edit). The Head Teacher cannot. */
+const FEES_VIEW_ROLES = ['Head of IT', 'School Governor', 'Head of School']; // not the Head Teacher
 function showFeesTabIfAllowed() {
   $('feesTabBtn').classList.toggle('hidden', FEES_VIEW_ROLES.indexOf(state.role) === -1);
 }
@@ -1057,7 +1057,7 @@ function showClassPickerView() {
    normal portal so Governor / Head of IT / Safeguarding Team Lead / Head of
    School never need Admin Portal access just to see it. */
 
-const USAGE_VIEW_ROLES = ['Head of School', 'School Governor', 'Head of IT', 'Safeguarding Team Lead'];
+const USAGE_VIEW_ROLES = ['Head of School', 'Head Teacher', 'School Governor', 'Head of IT', 'Safeguarding Team Lead'];
 let usagePeriodType = 'weekly';
 let usageOffset = 0;
 let usageRows = [];
