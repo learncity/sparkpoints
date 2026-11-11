@@ -237,20 +237,26 @@
           <div class="statCard"><span class="statLabel">Total Students</span><span id="classTotal" class="statValue"></span></div>
           <div class="statCard"><span class="statLabel">Achievement (7d)</span><span id="classAch7d" class="statValue good"></span></div>
           <div class="statCard"><span class="statLabel">Behavioural (7d)</span><span id="classBeh7d" class="statValue bad"></span></div>
-          <div class="statCard"><span class="statLabel">Attendance Taken (last 7d)</span><span id="classAttDays" class="statValue"></span></div>
-          <div class="statCard"><span class="statLabel">Incidents (7d)</span><span id="classIncidents" class="statValue"></span></div>
+          <div class="statCard" id="classAttDaysCard"><span class="statLabel">Attendance Taken (last 7d)</span><span id="classAttDays" class="statValue"></span></div>
+          <div class="statCard" id="classIncidentsCard"><span class="statLabel">Incidents (7d)</span><span id="classIncidents" class="statValue"></span></div>
         </div>
 
         <p><strong>Most common behaviour (this term):</strong> <span id="classMostCommon"></span></p>
 
-        <h3>Students Approaching Escalation</h3>
-        <div id="classApproachingList"></div>
+        <div id="classPastoralApproaching">
+          <h3>Students Approaching Escalation</h3>
+          <div id="classApproachingList"></div>
+        </div>
 
         <h3>Top Achievements (this term)</h3>
         <div id="classTopList"></div>
 
-        <h3>Needing Follow-up (this term)</h3>
-        <div id="classFollowUpList"></div>
+        <div id="classPastoralFollowUp">
+          <h3>Needing Follow-up (this term)</h3>
+          <div id="classFollowUpList"></div>
+        </div>
+
+        <p id="classPastoralNote" class="subtitle hidden">Attendance, incidents and pastoral follow-up for this class sit with its form tutor.</p>
       </div>
 
       <div id="schoolDashContent" class="hidden">

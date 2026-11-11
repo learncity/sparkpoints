@@ -40,6 +40,10 @@ const $ = function (id) { return document.getElementById(id); };
 let state = {
   email: '', code: '', fullName: '', role: '', assignedClasses: [], homeClass: '',
   canLog: false, canAmendDelete: false,
+  /* Default to true so an older backend that does not send these flags
+     behaves exactly as it did before they existed -- a missing flag must
+     never lock a form tutor out of their own register. */
+  canTakeRegister: true, canReportIncidents: true, seesPastoral: true,
   students: [], achievement: [], behavioural: [],
   lastRecent: [], currentDashStudentId: '',
   bulkMode: false, currentSingleClass: '',
@@ -79,6 +83,9 @@ function trySignIn(email, code) {
     state.homeClass = r.homeClass || '';
     state.canLog = r.canLog;
     state.canAmendDelete = r.canAmendDelete;
+    state.canTakeRegister = r.canTakeRegister !== false;
+    state.canReportIncidents = r.canReportIncidents !== false;
+    state.seesPastoral = r.seesPastoral !== false;
 
     try {
       /* "Remember me" persists across visits (localStorage); unchecked
@@ -129,6 +136,8 @@ function enterPortal() {
     return;
   }
 
+  applyRoleScope();
+
   if (!state.canLog) {
     $('logError').textContent = 'Your account can view records but is not set up to log new entries. Contact Head of IT if this seems wrong.';
     $('submitBtn').disabled = true;
@@ -151,9 +160,14 @@ function enterPortal() {
     showUsageTabIfAllowed();
     showFeesTabIfAllowed();
     populateBulkClasses();
-    populateAttendanceClasses();
-    populateIncidentClasses();
-    populateIncidentOtherStudentSelect();
+    /* Skipped rather than loaded-then-hidden: populateAttendanceClasses
+       fetches a roster, and a Subject Teacher's fetch would come back
+       refused and leave an error sitting on a tab they cannot see. */
+    if (state.canTakeRegister) populateAttendanceClasses();
+    if (state.canReportIncidents) {
+      populateIncidentClasses();
+      populateIncidentOtherStudentSelect();
+    }
   }).catch(function () {
     fatal('Could not reach the server while loading the form.');
   });
@@ -209,6 +223,23 @@ function populateDashStudentSelect() {
 const FEES_VIEW_ROLES = ['Head of IT', 'School Governor', 'Head of School']; // not the Head Teacher
 function showFeesTabIfAllowed() {
   $('feesTabBtn').classList.toggle('hidden', FEES_VIEW_ROLES.indexOf(state.role) === -1);
+}
+
+/* Hides what this role has no business doing, rather than showing it and
+   refusing on submit. This only decides what is on screen -- Code.gs
+   refuses the same calls server-side, so nothing here is the safeguard.
+
+   A Subject Teacher keeps Log a Point, Student Dashboard and Class
+   Dashboard (its teaching half). The register and incident reports are
+   the form tutor's. */
+function tabBtnFor(tabId) {
+  return document.querySelector('.tabBtn[data-tab="' + tabId + '"]');
+}
+function applyRoleScope() {
+  var att = tabBtnFor('attendanceTab');
+  var inc = tabBtnFor('incidentTab');
+  if (att) att.classList.toggle('hidden', !state.canTakeRegister);
+  if (inc) inc.classList.toggle('hidden', !state.canReportIncidents);
 }
 
 function switchTab(tabId) {
@@ -975,24 +1006,35 @@ function loadClassDashboard(className) {
 }
 
 function renderClassDashboard(r) {
+  /* The server decides this, not the browser: for a Subject Teacher it
+     does not compute the pastoral half at all, so these figures are not
+     merely hidden, they were never sent. */
+  var pastoral = r.seesPastoral !== false;
+  $('classAttDaysCard').classList.toggle('hidden', !pastoral);
+  $('classIncidentsCard').classList.toggle('hidden', !pastoral);
+  $('classPastoralApproaching').classList.toggle('hidden', !pastoral);
+  $('classPastoralFollowUp').classList.toggle('hidden', !pastoral);
+  $('classPastoralNote').classList.toggle('hidden', pastoral);
+
   $('classTotal').textContent = r.totalStudents;
   $('classAch7d').textContent = fmtPts(r.achievement7d);
   $('classBeh7d').textContent = fmtPts(r.behavioural7d);
-  $('classAttDays').textContent = r.attendanceDaysTaken7d + ' of last 7';
-  $('classIncidents').textContent = r.incidentCount7d;
   $('classMostCommon').textContent = r.mostCommonBehaviour;
 
-  fillList('classApproachingList', r.approachingEscalation, function (s) {
-    return '<strong>' + escapeHtml(s.name) + '</strong> — L2: ' + s.l2 + ', L3: ' + s.l3 + ' — ' + escapeHtml(s.flag);
-  }, 'No students currently approaching escalation.');
+  if (pastoral) {
+    $('classAttDays').textContent = r.attendanceDaysTaken7d + ' of last 7';
+    $('classIncidents').textContent = r.incidentCount7d;
+    fillList('classApproachingList', r.approachingEscalation, function (s) {
+      return '<strong>' + escapeHtml(s.name) + '</strong> — L2: ' + s.l2 + ', L3: ' + s.l3 + ' — ' + escapeHtml(s.flag);
+    }, 'No students currently approaching escalation.');
+    fillList('classFollowUpList', r.needingFollowUp, function (f) {
+      return '<strong>' + escapeHtml(f.name) + '</strong> — ' + escapeHtml(f.category) + ' — ' + escapeHtml(f.followUp) + ' (' + escapeHtml(f.staff) + ')';
+    }, 'Nothing outstanding.');
+  }
 
   fillList('classTopList', r.topAchievements, function (a) {
     return '<strong>' + escapeHtml(a.name) + '</strong> — ' + escapeHtml(a.category) + ' (' + fmtPts(a.points) + ') — ' + escapeHtml(a.date) + ' ' + escapeHtml(a.time || '');
   }, 'No achievements recorded yet this term.');
-
-  fillList('classFollowUpList', r.needingFollowUp, function (f) {
-    return '<strong>' + escapeHtml(f.name) + '</strong> — ' + escapeHtml(f.category) + ' — ' + escapeHtml(f.followUp) + ' (' + escapeHtml(f.staff) + ')';
-  }, 'Nothing outstanding.');
 
   $('classDashContent').classList.remove('hidden');
 }
@@ -1191,6 +1233,7 @@ function wire() {
     'dashClassSelect', 'classDashError', 'classDashContent',
     'classTotal', 'classAch7d', 'classBeh7d', 'classAttDays', 'classIncidents', 'classMostCommon',
     'classApproachingList', 'classTopList', 'classFollowUpList',
+    'classAttDaysCard', 'classIncidentsCard', 'classPastoralApproaching', 'classPastoralFollowUp', 'classPastoralNote',
     'schoolDashToggleArea', 'schoolDashBtn', 'schoolDashContent', 'backToClassBtn',
     'schoolTotal', 'schoolAch7d', 'schoolBeh7d', 'schoolIncidents', 'schoolDashDownloadBtn', 'schoolClassTable',
     'usageTabBtn', 'usageTab', 'feesTabBtn', 'feesTab', 'usageWeeklyBtn', 'usageMonthlyBtn', 'usageTermlyBtn', 'usagePrevBtn', 'usageNextBtn',
