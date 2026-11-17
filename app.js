@@ -30,7 +30,7 @@ const STORE_CODE = 'LC_SPARK_CODE';
    exactly -- taken directly from the final reconciled student list, not
    assumed. Nursery and Primary (except Primary 6) now split into real
    arms; Primary 3 has three (A/B/C), not two. Secondary has no arms. */
-const ALL_CLASSES = ['Nursery 1A', 'Nursery 1B', 'Nursery 2A', 'Nursery 2B',
+const ALL_CLASSES = ['Pre-Nursery 1', 'Pre-Nursery 2', 'Nursery 1A', 'Nursery 1B', 'Nursery 2A', 'Nursery 2B',
   'Primary 1A', 'Primary 1B', 'Primary 2A', 'Primary 2B', 'Primary 3A', 'Primary 3B', 'Primary 3C',
   'Primary 4A', 'Primary 4B', 'Primary 5A', 'Primary 5B', 'Primary 6',
   'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3'];
@@ -43,7 +43,7 @@ let state = {
   /* Default to true so an older backend that does not send these flags
      behaves exactly as it did before they existed -- a missing flag must
      never lock a form tutor out of their own register. */
-  canTakeRegister: true, canReportIncidents: true, seesPastoral: true,
+  canTakeRegister: true, canReportIncidents: true, seesPastoral: true, registerOnly: false,
   students: [], achievement: [], behavioural: [],
   lastRecent: [], currentDashStudentId: '',
   bulkMode: false, currentSingleClass: '',
@@ -86,6 +86,7 @@ function trySignIn(email, code) {
     state.canTakeRegister = r.canTakeRegister !== false;
     state.canReportIncidents = r.canReportIncidents !== false;
     state.seesPastoral = r.seesPastoral !== false;
+    state.registerOnly = r.registerOnly === true;
 
     try {
       /* "Remember me" persists across visits (localStorage); unchecked
@@ -240,6 +241,11 @@ function applyRoleScope() {
   var inc = tabBtnFor('incidentTab');
   if (att) att.classList.toggle('hidden', !state.canTakeRegister);
   if (inc) inc.classList.toggle('hidden', !state.canReportIncidents);
+  /* Register Only: Attendance is the whole portal. The server refuses everything else too. */
+  if (state.registerOnly) {
+    ['logTab', 'studentTab', 'classTab'].forEach(function (t) { var b = tabBtnFor(t); if (b) b.classList.add('hidden'); });
+    switchTab('attendanceTab');
+  }
 }
 
 function switchTab(tabId) {
@@ -572,7 +578,7 @@ function sectionForClass(className) {
   /* Nursery is its own section — separate category library and tier
      scale from Primary, not an alias of it. */
   if (!className) return 'Secondary';
-  if (className.indexOf('Nursery') === 0) return 'Nursery';
+  if (/^(pre-)?nursery/i.test(className)) return 'Nursery';
   if (className.indexOf('Primary') === 0) return 'Primary';
   return 'Secondary';
 }
