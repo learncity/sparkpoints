@@ -57,11 +57,13 @@ function initFeesTab() {
 
 function finBuildShell() {
   var subs = [['overview', 'Overview'], ['students', 'Students'], ['report', 'Payments report'], ['schedule', FIN.canEdit ? 'Fee schedule & invoices' : 'Fee schedule']];
+  /* Payroll (payroll.js): Bursar, Head of IT and Head of School only. */
+  if (typeof payAllowed === 'function' && payAllowed()) subs.push(['payroll', 'Payroll']);
   $('feesTab').innerHTML =
     '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px">' +
     '<strong id="finTermLabel">Fees</strong>' +
     '<span style="padding:2px 10px;border-radius:12px;font-size:13px;' + (FIN.canEdit ? 'background:#ECFDF5;color:#047857;border:1px solid #6EE7B7' : 'background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE') + '">' +
-    (FIN.canEdit ? 'Bursar — can edit' : 'View only') + '</span></div>' +
+    (FIN.canEdit ? 'Bursar — can edit fees' : 'Fees: view only') + '</span></div>' +
     '<div id="finSubBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' +
     subs.map(function (s) { return '<button type="button" class="finSubBtn" data-fin-sub="' + s[0] + '">' + s[1] + '</button>'; }).join('') + '</div>' +
     '<p id="finMsg" class="error"></p><div id="finConfirm"></div><div id="finBody"><p class="subtitle">Loading...</p></div>';
@@ -74,10 +76,19 @@ function finMarkSub() {
   });
 }
 function finShowSub(name) {
+  /* Leaving a payroll month with unsaved figures asks first. */
+  if (FIN.sub === 'payroll' && name !== 'payroll' && typeof payLeave === 'function') {
+    payLeave(function () { finGoSub(name); });
+    return;
+  }
+  finGoSub(name);
+}
+function finGoSub(name) {
   FIN.sub = name; FIN.ledger = null; finMsg(''); finSet('finConfirm', ''); finMarkSub();
   if (name === 'overview') finLoadOverview();
   else if (name === 'students') finLoadStudents();
   else if (name === 'report') finRenderReport();
+  else if (name === 'payroll') payShow();
   else finLoadSchedule();
 }
 
