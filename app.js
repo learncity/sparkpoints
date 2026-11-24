@@ -28,9 +28,10 @@ const STORE_CODE = 'LC_SPARK_CODE';
 
 /* This list must match the actual Class values in the STUDENTS sheet
    exactly -- taken directly from the final reconciled student list, not
-   assumed. Nursery and Primary (except Primary 6) now split into real
-   arms; Primary 3 has three (A/B/C), not two. Secondary has no arms. */
-const ALL_CLASSES = ['Nursery 1A', 'Nursery 1B', 'Nursery 2A', 'Nursery 2B',
+   assumed. Pre-Nursery, Nursery and Primary (except Primary 6) now split
+   into real arms; Primary 3 has three (A/B/C), not two. Secondary has no arms. */
+const ALL_CLASSES = ['Pre-Nursery 1A', 'Pre-Nursery 1B', 'Pre-Nursery 2A', 'Pre-Nursery 2B',
+  'Nursery 1A', 'Nursery 1B', 'Nursery 2A', 'Nursery 2B',
   'Primary 1A', 'Primary 1B', 'Primary 2A', 'Primary 2B', 'Primary 3A', 'Primary 3B', 'Primary 3C',
   'Primary 4A', 'Primary 4B', 'Primary 5A', 'Primary 5B', 'Primary 6',
   'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3'];
@@ -79,6 +80,7 @@ function trySignIn(email, code) {
     state.homeClass = r.homeClass || '';
     state.canLog = r.canLog;
     state.canAmendDelete = r.canAmendDelete;
+    state.registerOnly = !!r.registerOnly;
 
     try {
       /* "Remember me" persists across visits (localStorage); unchecked
@@ -126,6 +128,15 @@ function enterPortal() {
   if (state.role === 'Bursar') {
     document.querySelectorAll('.tabBtn').forEach(function (b) { if (b.getAttribute('data-tab') !== 'feesTab') b.classList.add('hidden'); });
     switchTab('feesTab');
+    return;
+  }
+
+  /* Register Only (Pre-Nursery teachers and assistants): the register for
+     their own classes, nothing else. The server refuses everything else too. */
+  if (state.registerOnly) {
+    document.querySelectorAll('.tabBtn').forEach(function (b) { if (b.getAttribute('data-tab') !== 'attendanceTab') b.classList.add('hidden'); });
+    switchTab('attendanceTab');
+    populateAttendanceClasses();
     return;
   }
 
@@ -542,6 +553,7 @@ function sectionForClass(className) {
      scale from Primary, not an alias of it. */
   if (!className) return 'Secondary';
   if (className.indexOf('Nursery') === 0) return 'Nursery';
+  if (/^Pre[-\s]?Nursery/i.test(className)) return 'Nursery'; // Pre-Nursery uses the Nursery library
   if (className.indexOf('Primary') === 0) return 'Primary';
   return 'Secondary';
 }
